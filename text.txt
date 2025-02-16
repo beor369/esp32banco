@@ -1,0 +1,352 @@
+String tecladoVirtual()
+{
+	const char teclado[3][4][11] = {
+		{// Modo 0: Mayúsculas
+		 {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'},
+		 {'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V'},
+		 {'W', 'X', 'Y', 'Z', '1', '2', '3', '4', '5', '6', '7'},
+		 {'8', '9', '0', '.', '-', '<', '>', '*', ' ', ' ', ' '}},
+		{// Modo 1: Minúsculas
+		 {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k'},
+		 {'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v'},
+		 {'w', 'x', 'y', 'z', '1', '2', '3', '4', '5', '6', '7'},
+		 {'8', '9', '0', '.', '-', '<', '>', '*', ' ', ' ', ' '}},
+		{// Modo 2: Caracteres especiales
+		 {'!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_'},
+		 {'+', '=', '<', '>', '?', '/', '[', ']', '{', '}', '|'},
+		 {'~', '`', ':', ';', '"', '\'', '\\', ' ', ' ', ' ', ' '},
+		 {' ', ' ', ' ', ' ', ' ', '<', '>', '*', ' ', ' ', ' '}}};
+
+	String textoSeleccionado = "";
+	int fila = 0, columna = 0;
+	int lastEncoderPosition = encoder.getCount();
+	bool seleccionando = true;
+	int modo = 0; // 0 = Mayúsculas, 1 = Minúsculas, 2 = Caracteres especiales
+
+	while (seleccionando)
+	{
+		int encoderPosition = encoder.getCount();
+		u8g2.clearBuffer();
+		u8g2.setFont(u8g2_font_ncenB08_tr);
+
+		// Controlar el movimiento del cursor con el encoder
+		if (encoderPosition != lastEncoderPosition)
+		{
+			if (encoderPosition > lastEncoderPosition)
+			{
+				columna++;
+				if (columna > 10)
+				{
+					columna = 0;
+					fila++;
+					if (fila > 3)
+					{
+						fila = 0;
+					}
+				}
+			}
+			else
+			{
+				columna--;
+				if (columna < 0)
+				{
+					columna = 10;
+					fila--;
+					if (fila < 0)
+					{
+						fila = 3;
+					}
+				}
+			}
+			lastEncoderPosition = encoderPosition;
+		}
+
+		// Detectar la presión del botón para seleccionar una letra/número o símbolo
+		if (digitalRead(botonPin) == LOW)
+		{
+			char seleccion = teclado[modo][fila][columna];
+			if (seleccion == '-')
+			{
+				// Borrar la última letra
+				if (textoSeleccionado.length() > 0)
+				{
+					textoSeleccionado.remove(textoSeleccionado.length() - 1);
+				}
+			}
+			else if (seleccion == '>')
+			{
+				// Si selecciona ">", terminar la selección y devolver el texto
+				seleccionando = false;
+			}
+			else if (seleccion == '<')
+			{
+				return ""; // Devolver un valor vacío o lo que prefieras.
+			}
+			else if (seleccion == '*')
+			{
+				// Cambiar de modo (mayúsculas, minúsculas, especiales)
+				modo = (modo + 1) % 3;
+			}
+			else
+			{
+				// Agregar la letra o número seleccionado
+				textoSeleccionado += seleccion;
+			}
+			delay(200); // Debounce para evitar múltiples selecciones
+		}
+
+		// Mostrar el teclado en pantalla
+		u8g2.clearBuffer();
+		u8g2.setFont(u8g2_font_ncenB08_tr);
+
+		// Mostrar las letras/números del teclado con el cursor encima del número seleccionado
+		for (int i = 0; i < 4; i++)
+		{
+			for (int j = 0; j < 11; j++)
+			{
+				int x = j * 11;		  // Espaciado horizontal
+				int y = (i + 1) * 12; // Espaciado vertical
+
+				// Dibujar el cursor
+				if (i == fila && j == columna)
+				{
+					u8g2.drawStr(x, y, "[");
+					u8g2.drawStr(x + 9, y, "]");
+					u8g2.drawStr(x + 3, y, String(teclado[modo][i][j]).c_str());
+				}
+				else
+				{
+					u8g2.drawStr(x, y, String(teclado[modo][i][j]).c_str());
+				}
+			}
+		}
+
+		// Mostrar el texto seleccionado hasta el momento
+		u8g2.drawStr(0, 60, textoSeleccionado.c_str());
+
+		// Enviar los datos a la pantalla OLED
+		u8g2.sendBuffer();
+	}
+	return textoSeleccionado; // Devolver el texto cuando selecciona ">"
+}
+
+
+void showResults()
+{
+	bool exit = false;
+	while (!exit)
+	{
+		u8g2.clearBuffer();
+		u8g2.setFont(u8g2_font_5x8_tr); // Fuente compacta para más información
+
+		// Encabezados
+		u8g2.drawStr(0, 8, "Resultados finales:");
+		u8g2.drawStr(0, 16, "Prueba   Estado");
+
+		// Resultados de cada prueba
+		for (int i = 0; i < 5; i++)
+		{
+			char linea[20];
+			// Verifica si el resultado fue "Bien" (true) o "Mal" (false)
+			sprintf(linea, "%s   %s", nombresPruebas[i], (Imagenes::obtenerImagen("resultados")[i]) ? "Bien" : "Mal");
+			u8g2.drawStr(0, 24 + (i * 8), linea);
+		}
+
+		// Calcular puntaje total
+		int puntajeTotal = 0;
+		for (int i = 0; i < 5; i++)
+		{
+			puntajeTotal += Imagenes::obtenerImagen("resultados")[i] ? 1 : 0;
+		}
+
+		// Mostrar estado general del inyector
+		const char *estadoInyector;
+		if (puntajeTotal == 5)
+		{
+			estadoInyector = "Perfecto";
+		}
+		else if (puntajeTotal >= 3)
+		{
+			estadoInyector = "Regular";
+		}
+		else
+		{
+			estadoInyector = "Reparar";
+		}
+
+		char lineaFinal[20];
+		sprintf(lineaFinal, "Estado: %s", estadoInyector);
+		u8g2.drawStr(0, 64 - 8, lineaFinal);
+
+		// Mostrar en la pantalla OLED
+		u8g2.sendBuffer();
+		// Enviar el contenido al display
+		u8g2.sendBuffer();
+
+		delay(1000); // Pequeño retardo para evitar rebotes y actualizar con frecuencia
+
+		// Manejar el botón para salir
+		if (digitalRead(botonPin) == LOW)
+		{
+			delay(50); // Debounce
+			if (digitalRead(botonPin) == LOW)
+			{
+				while (digitalRead(botonPin) == LOW)
+				{
+					delay(10); // Espera a que se suelte el botón
+				}
+				exit = true;
+				estadoActual = SUBMENU_MANUAL;
+			}
+		}
+	}
+}
+
+
+class InjectorDataStorage
+{
+public:
+	InjectorDataStorage()
+	{
+		esp_err_t err = nvs_flash_init();
+		if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND)
+		{
+			ESP_ERROR_CHECK(nvs_flash_erase());
+			err = nvs_flash_init();
+		}
+		ESP_ERROR_CHECK(err);
+	}
+
+	void saveData()
+	{
+		nvs_handle_t handle;
+		ESP_ERROR_CHECK(nvs_open(NAMESPACE, NVS_READWRITE, &handle));
+
+		saveStringArray(handle, "numParte", numerosParte, 12);
+		saveStringArray(handle, "tipoValv", tiposValvula, 12);
+		saveStringArray(handle, "imped", impedancias, 12);
+		saveStringArray(handle, "angAtom", angulosAtomizacion, 12);
+		saveStringArray(handle, "caudal", caudalCombustible, 12);
+		saveStringArray(handle, "presOper", presionOperacion, 12);
+		saveStringArray(handle, "tipoCon", tiposConector, 12);
+
+		ESP_ERROR_CHECK(nvs_commit(handle));
+		nvs_close(handle);
+		Serial.println("Datos guardados en NVS.");
+	}
+
+	void readData()
+	{
+		nvs_handle_t handle;
+		ESP_ERROR_CHECK(nvs_open(NAMESPACE, NVS_READONLY, &handle));
+
+		readStringArray(handle, "numParte", 12);
+		readStringArray(handle, "tipoValv", 12);
+		readStringArray(handle, "imped", 12);
+		readStringArray(handle, "angAtom", 12);
+		readStringArray(handle, "caudal", 12);
+		readStringArray(handle, "presOper", 12);
+		readStringArray(handle, "tipoCon", 12);
+
+		nvs_close(handle);
+	}
+
+private:
+	const char *numerosParte[12] = {
+		"FJ7Z-09", "0280156014", "195500-3040", "0280158028", "0280156033", "FJ8Z-10",
+		"195500-3040", "0280156014", "0280156014", "FJ7Z-09", "195500-3040", "0280156014"};
+
+	const char *tiposValvula[12] = {
+		"Aguja", "Disco", "Bola", "Aguja", "Disco", "Aguja",
+		"Bola", "Disco", "Disco", "Aguja", "Bola", "Disco"};
+
+	const char *impedancias[12] = {
+		"Alta (12 ohmios)", "Alta (14 ohmios)", "Baja (2.5 ohmios)",
+		"Alta (12 ohmios)", "Alta (14 ohmios)", "Alta (12 ohmios)",
+		"Baja (2.5 ohmios)", "Alta (14 ohmios)", "Alta (14 ohmios)",
+		"Alta (12 ohmios)", "Baja (2.5 ohmios)", "Alta (14 ohmios)"};
+
+	const char *angulosAtomizacion[12] = {
+		"20°-30°", "15°-25°", "20°-30°", "15°-25°", "15°-25°", "20°-30°",
+		"20°-30°", "15°-25°", "15°-25°", "20°-30°", "20°-30°", "15°-25°"};
+
+	const char *caudalCombustible[12] = {
+		"180 cc/min", "190 cc/min", "160 cc/min", "210 cc/min", "200 cc/min", "190 cc/min",
+		"160 cc/min", "220 cc/min", "230 cc/min", "180 cc/min", "160 cc/min", "240 cc/min"};
+
+	const char *presionOperacion[12] = {
+		"3 bar", "3 bar", "3 bar", "3 bar", "3 bar", "3 bar",
+		"3 bar", "3 bar", "3 bar", "3 bar", "3 bar", "3 bar"};
+
+	const char *tiposConector[12] = {
+		"Keihin", "Bosch", "Mikuni", "Bosch", "Bosch", "Keihin",
+		"Mikuni", "Bosch", "Bosch", "Keihin", "Mikuni", "Bosch"};
+
+	void saveStringArray(nvs_handle_t handle, const char *key, const char *arr[], size_t size)
+	{
+		String concatenated = "";
+		for (size_t i = 0; i < size; i++)
+		{
+			concatenated += arr[i];
+			if (i < size - 1)
+				concatenated += ",";
+		}
+		ESP_ERROR_CHECK(nvs_set_str(handle, key, concatenated.c_str()));
+	}
+
+	void readStringArray(nvs_handle_t handle, const char *key, size_t size)
+	{
+		size_t required_size;
+		esp_err_t err = nvs_get_str(handle, key, NULL, &required_size);
+		if (err != ESP_OK)
+		{
+			Serial.printf("Error leyendo %s\n", key);
+			return;
+		}
+
+		char *buffer = (char *)malloc(required_size);
+		ESP_ERROR_CHECK(nvs_get_str(handle, key, buffer, &required_size));
+
+		Serial.printf("%s: %s\n", key, buffer);
+		free(buffer);
+	}
+};
+
+
+
+
+void seleccionarMotocicleta();
+void menuSeleccionMotocicleta();
+bool encoderButtonPressed();
+void mostrarMotocicletaSeleccionada(int indice);
+void mostrarSeleccionMotocicleta(int indice);
+void mostrarConfirmarMoto();
+void displayField();
+void guardarDato(String data);
+int getFirstAvailableIndex(char arreglo[][50], int maxItems);
+
+void enviarWifiDatos();
+void solicitarYGuardarDatos();
+
+
+void cargarDatosDeEEPROM();
+String leerDeEEPROM(int index);
+void checkInjectorFlow();
+
+float calculateFlowRate(uint32_t pulses);
+void detectInjectorClickk();
+void requestData(const char *prompt);
+void checkInjectorResistance();
+
+void compareResistances(float baseResistance, float testResistance);
+void mostrarMenu();
+void manejarEstado();
+void mensajeBienvenida(const char *mensaje);
+void IRAM_ATTR pulseCounter(); // Necesario para las ISR en ESP32
+void setupoled();
+String tecladoVirtual();
+void displayFlowRate();
+void setupEncoder();
+void displayEncoderPosition();
+void mostrarDatosInyector(int indice);
+bool botonTecladoPresionado();
