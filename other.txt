@@ -32,7 +32,7 @@ Preferences preferences;  // Para manejar la NVS
 // -------------------- Funciones de almacenamiento en NVS --------------------
 
 // Carga los datos personalizados almacenados en la NVS
-void cargarDatos() {
+void  {
   preferences.begin("inyectorData", true);  // Modo lectura
   numInyectores = (uint8_t) preferences.getUInt("num", 0);
   if (numInyectores > 0) {
@@ -382,7 +382,7 @@ void mostrarMenu() {
 void setup() {
   Serial.begin(115200);
   while (!Serial) { ; }
-  cargarDatos();
+  ;
   Serial.println("Banco de prueba de inyectores automáticos para motocicletas");
   mostrarMenu();
 }

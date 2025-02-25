@@ -1,6 +1,7 @@
 #include "Menu.h"
 #include "displayhandler/DisplayHandler.h"
 #include "saveInjector/saveInjector.h"
+#include "pruebas/pruebas.h"
 // Declaración de variables globales (definidas en main.cpp)
 extern int indiceMenu;
 extern int indiceInyector;
@@ -9,6 +10,7 @@ extern int indicefuncionamiento;
 extern int indiceseleccionarmoto;
 extern int indiceagregarborrarinjt;
 extern Estado estadoActual;
+
 
 extern U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2;
 
@@ -20,8 +22,8 @@ static const char *submenuFuncionamientoImagenes[] = {"modo_manual", "modo_autom
 static const int tamaniosubMenuFuncionamiento = sizeof(submenuFuncionamientoImagenes) / sizeof(submenuFuncionamientoImagenes[0]);
 
 static const char *submenuManualImagenes[] = {
-    "prueba_medir_resistencia", "prueba_de_llenado", "prueba_de_goteo", "prueba_medir_clic",
-    "prueba_abanico", "resultados", "devolver"};
+    "prueba_medir_resistencia", "prueba_fugas", "prueba_medir_clic", "prueba_corriente_activacion",
+    "prueba_tiempo_respuesta", "prueba_flujo", "prueba_temperatura""resultados", "atrasitoo"};
 static const int tamanioSubMenuManual = sizeof(submenuManualImagenes) / sizeof(submenuManualImagenes[0]);
 
 static const char *agregarBorrarImagenes[] = {"AGREGAR_INJ", "BORRAR_INJ", "ATRASAGREGARINYECTOR_INJ"};
@@ -42,7 +44,7 @@ void mostrarMenu()
     }
     break;
   case MENU_SELECCION_INYECTOR:
-    // Aquí puedes agregar la lógica para este menú
+     handleTestInjector();
     break;
   case SUBMENU_FUNCIONAMIENTO:
     if (indicefuncionamiento >= 0 && indicefuncionamiento < tamaniosubMenuFuncionamiento)
@@ -68,11 +70,55 @@ void mostrarMenu()
       dibujarImagen(seleccionarMotoImagenes[indiceseleccionarmoto]);
     }
     break;
+  case MENU_CARACTERISTICAS:
+    handleShowInjector();
+
+     break;
   case AGREGAR:
     Serial.println("hola voy agregar");
-    setup_save();
+    handleAddInjector();
     break;
+  case BORRAR:
+    Serial.println("hola voy borrar");
+    handleDeleteData();
+    break;
+  case SUBMENU_MID_RES:
+  InjectorData selected;
+  //  runTestsAutomatic( selected);
+    TestResult result;
+    
+    result = runTestResistencia(selected);
+    Serial.print("Resistencia: ");
+    Serial.print(result.measuredValue);
+    Serial.println(result.passed ? " OK" : " FALLA");
+    delay(1000);
 
+ 
+  break;
+  case SUBMENU_FUGAS:
+
+  break;
+  case SUBMENU_CLICK:
+
+  break;
+  case SUBMENU_CORRIENTE_ACTIVACION:
+
+  break;
+  case SUBMENU_TIEMPO_RESPUESTA:
+
+  break;
+  case SUBMENU_FLUJO:
+
+  break;
+  case SUBMENU_TEMPERATURA:
+
+  break;
+  case SUBMENU_RESULTADOS:
+
+  break;
+  case ATRASITO:
+
+  break;
   default:
     break;
   }
@@ -133,6 +179,58 @@ void manejarEstado()
     {
       estadoActual = MENU_PRINCIPAL;
     }
+    break;
+    case SUBMENU_FUNCIONAMIENTO:
+    if (indicefuncionamiento == 0)
+    {
+      estadoActual = SUBMENU_MANUAL;
+    }
+    else if (indicefuncionamiento == 1)
+    {
+      estadoActual = SUBMENU_AUTOMATICO;
+    }
+    else if (indicefuncionamiento == 2)
+    {
+      estadoActual = SELECCIONAR_MOTO;
+    }
+    break;
+    case SUBMENU_MANUAL:
+    if (indiceSubSubMenu == 0)
+    {
+      estadoActual = SUBMENU_MID_RES;
+    }
+    else if (indiceSubSubMenu == 1)
+    {
+      estadoActual = SUBMENU_FUGAS;
+    }
+    else if (indiceSubSubMenu == 2)
+    {
+      estadoActual = SUBMENU_CLICK ;
+    }
+    else if (indiceSubSubMenu == 3)
+    {
+      estadoActual = SUBMENU_CORRIENTE_ACTIVACION;
+    }
+    else if (indiceSubSubMenu == 4)
+    {
+      estadoActual =  SUBMENU_TIEMPO_RESPUESTA;
+    }
+    else if (indiceSubSubMenu == 5)
+    {
+      estadoActual = SUBMENU_FLUJO;
+    }
+    else if (indiceSubSubMenu == 6)
+      {
+        estadoActual = SUBMENU_TEMPERATURA;
+      }
+    else if (indiceSubSubMenu == 7)
+      {
+        estadoActual = SUBMENU_RESULTADOS;
+      }
+    else if (indiceSubSubMenu == 8)
+      {
+        estadoActual = ATRASITO;
+      }
     break;
   // Agrega más casos según lo requiera tu lógica
   default:
@@ -206,6 +304,7 @@ void actualizarIndice(bool incremento)
       indiceSubSubMenu = (indiceSubSubMenu - 1 + tamanioSubMenuManual) % tamanioSubMenuManual;
     }
     break;
+
   // Agrega otros casos si es necesario
   default:
     break;

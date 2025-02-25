@@ -1,410 +1,425 @@
 #include <Preferences.h>
+#include "saveInjector.h"
+ #include "Config.h"
+#include "encoderhadler/EncoderHandler.h"
+#include "tecladovirtual/TecladoVirtual.h"
 
-#define MAX_INJECTORES         10    // Número máximo de inyectores personalizados
-#define MAX_MODEL_LEN          30    // Longitud máxima del nombre/modelo
-#define NUM_DEFAULT_INJECTORES 3     // Número de inyectores de fábrica (por defecto)
 
-// Estructura que contiene los parámetros ideales de un inyector
-struct InjectorData {
-  char modelo[MAX_MODEL_LEN];   // Nombre o modelo
-  float resistencia;
-  float caudal;
-  float fugas;
-  float tiempoRespuesta;
-  float corrienteActivacion;
-  float temperaturaOperativa;
-  float sonidoActivacion;
-};
+// Preferences para NVS (almacenamiento de datos personalizados)
+Preferences preferences;
 
-// Arreglo global para los inyectores personalizados y contador
-InjectorData inyectores[MAX_INJECTORES];
+extern U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2;
+extern ESP32Encoder encoder;
+// ====== ESTRUCTURA Y DATOS DE INYECTORES ======
+
+
+
+// struct InjectorData {
+//    char modelo[MAX_MODEL_LEN];   // Nombre o modelo
+//    float resistencia;
+//    float caudal;
+//   float fugas;
+//    float tiempoRespuesta;
+//    float corrienteActivacion;
+//    float temperaturaOperativa;
+//    float sonidoActivacion;
+// };
+
+InjectorData inyectores[MAX_INJECTORES];  // Personalizados (almacenados en NVS)
 uint8_t numInyectores = 0;
 
-// Arreglo constante con inyectores de fábrica (por defecto)
+// Datos de fábrica (por defecto)
 const InjectorData defaultInyectores[NUM_DEFAULT_INJECTORES] = {
   {"ModeloA", 10.0, 5.0, 0.5, 0.8, 3.2, 80.0, 2.5},
   {"ModeloB", 12.0, 6.0, 0.4, 1.0, 3.0, 85.0, 2.0},
   {"ModeloC",  9.5, 5.5, 0.6, 0.7, 3.5, 78.0, 2.7}
 };
 
-Preferences preferences;  // Para manejar la NVS
 
-// -------------------- Funciones de almacenamiento en NVS --------------------
-
-// Carga los datos personalizados almacenados en la NVS
+// ====== FUNCIONES DE NVS ======
 void cargarDatos() {
-  preferences.begin("inyectorData", true);  // Modo lectura
+  preferences.begin("inyectorData", true);
   numInyectores = (uint8_t) preferences.getUInt("num", 0);
-  if (numInyectores > 0) {
+  if(numInyectores > 0) {
     preferences.getBytes("data", &inyectores, sizeof(inyectores));
   }
   preferences.end();
 }
 
-// Guarda los datos personalizados en la NVS
 void guardarDatos() {
-  preferences.begin("inyectorData", false);  // Modo lectura/escritura
+  preferences.begin("inyectorData", false);
   preferences.putUInt("num", numInyectores);
   preferences.putBytes("data", &inyectores, sizeof(inyectores));
   preferences.end();
 }
 
-// -------------------- Funciones de entrada por Serial --------------------
+// ====== FUNCIONES DE INTERFAZ CON ENCODER Y OLED ======
 
-// Función para leer un valor float SIN opción default
-float leerFloat(String prompt) {
-  Serial.print(prompt);
+// Espera a que se presione el botón del encoder (con simple debouncing)
+void waitForButtonPress() {
+  encoder.clearCount();
+  while(digitalRead(botonPin) == HIGH) {
+    delay(10);
+  }
+  // Espera a soltar el botón
+  while(digitalRead(botonPin) == LOW) {
+    delay(10);
+  }
+  delay(200); // delay para evitar rebotes
+}
+
+// Muestra un menú con opciones y permite seleccionar mediante encoder
+// int lastEncoderPosition = encoder.getCount();
+// bool seleccionando = true;
+int selectMenuOption(const char* title, const char* options[], int numOptions) {
+  long encoderPos = 0;
+  int selected = 0;
+  int offset = 0;              // Índice del primer elemento visible
+  const int maxRows = 4;       // Número máximo de filas a mostrar en pantalla
+  encoder.clearCount();        // Reinicia la cuenta del encoder
+  
   while (true) {
-    if (Serial.available()) {
-      String entrada = Serial.readStringUntil('\n');
-      entrada.trim();
-      float valor = entrada.toFloat();
-      // Se acepta "0" solo si se ingresa "0" o "0.0"
-      if (valor == 0 && entrada != "0" && entrada != "0.0") {
-        Serial.println("Valor no válido. Intente nuevamente.");
-        Serial.print(prompt);
-      } else {
-        return valor;
-      }
-    }
-  }
-}
-
-// Función para leer un valor float con opción de usar el valor por defecto
-float leerFloatConDefault(String prompt, float valorDefault) {
-  Serial.print(prompt);
-  while (true) {
-    if (Serial.available()) {
-      String entrada = Serial.readStringUntil('\n');
-      entrada.trim();
-      // Si el usuario ingresa "D" o "d", se usa el valor por defecto
-      if (entrada.equalsIgnoreCase("d")) {
-        Serial.print("Usando valor por defecto: ");
-        Serial.println(valorDefault);
-        return valorDefault;
-      }
-      float valor = entrada.toFloat();
-      if (valor == 0 && entrada != "0" && entrada != "0.0") {
-        Serial.println("Valor no válido. Intente nuevamente.");
-        Serial.print(prompt);
-      } else {
-        return valor;
-      }
-    }
-  }
-}
-
-// Lee una cadena (String) desde el monitor serial
-String leerString(String prompt) {
-  Serial.print(prompt);
-  while (true) {
-    if (Serial.available()) {
-      String entrada = Serial.readStringUntil('\n');
-      entrada.trim();
-      if (entrada.length() == 0) {
-        Serial.println("Entrada vacía. Intente nuevamente.");
-        Serial.print(prompt);
-      } else {
-        return entrada;
-      }
-    }
-  }
-}
-
-// Lee un número entero desde el monitor serial
-int leerEntero(String prompt) {
-  Serial.print(prompt);
-  while (true) {
-    if (Serial.available()) {
-      String entrada = Serial.readStringUntil('\n');
-      entrada.trim();
-      int valor = entrada.toInt();
-      if (valor == 0 && entrada != "0") {
-        Serial.println("Valor no válido. Intente nuevamente.");
-        Serial.print(prompt);
-      } else {
-        return valor;
-      }
-    }
-  }
-}
-
-// -------------------- Funciones del Banco de Inyectores --------------------
-
-// Agrega un nuevo inyector personalizado; para cada parámetro, el usuario puede ingresar un valor o teclear "D" para usar el valor por defecto.
-void agregarInyector() {
-  if (numInyectores >= MAX_INJECTORES) {
-    Serial.println("Se alcanzó el número máximo de inyectores personalizados.");
-    return;
-  }
-  
-  InjectorData nuevoInyector;
-  String modelo = leerString("Ingrese el modelo o nombre del inyector: ");
-  modelo.toCharArray(nuevoInyector.modelo, MAX_MODEL_LEN);
-  
-  Serial.println("Ingrese los valores ideales (parámetros de referencia).");
-  Serial.println("Para usar el valor por defecto, ingrese 'D'.");
-  
-  // Se utilizan como referencia los valores del inyector de fábrica "ModeloA"
-  nuevoInyector.resistencia         = leerFloatConDefault("  Resistencia eléctrica: ", 10.0);
-  nuevoInyector.caudal              = leerFloatConDefault("  Caudal de combustible: ", 5.0);
-  nuevoInyector.fugas               = leerFloatConDefault("  Fugas en reposo: ", 0.5);
-  nuevoInyector.tiempoRespuesta     = leerFloatConDefault("  Tiempo de respuesta: ", 0.8);
-  nuevoInyector.corrienteActivacion = leerFloatConDefault("  Corriente de activación: ", 3.2);
-  nuevoInyector.temperaturaOperativa= leerFloatConDefault("  Temperatura operativa: ", 80.0);
-  nuevoInyector.sonidoActivacion    = leerFloatConDefault("  Sonido de activación: ", 2.5);
-  
-  inyectores[numInyectores] = nuevoInyector;
-  numInyectores++;
-  guardarDatos();
-  
-  Serial.println("Datos del inyector personalizado agregados exitosamente.");
-}
-
-// Muestra los datos de un inyector personalizado (buscado por modelo)
-void mostrarInyector() {
-  if (numInyectores == 0) {
-    Serial.println("No hay inyectores personalizados almacenados.");
-    return;
-  }
-  
-  String modeloBusqueda = leerString("Ingrese el modelo o nombre del inyector a mostrar: ");
-  bool encontrado = false;
-  
-  for (int i = 0; i < numInyectores; i++) {
-    if (modeloBusqueda.equalsIgnoreCase(inyectores[i].modelo)) {
-      Serial.print("\n--- Datos del inyector personalizado: ");
-      Serial.print(inyectores[i].modelo);
-      Serial.println(" ---");
-      Serial.print("  Resistencia: ");           Serial.println(inyectores[i].resistencia);
-      Serial.print("  Caudal: ");                Serial.println(inyectores[i].caudal);
-      Serial.print("  Fugas: ");                 Serial.println(inyectores[i].fugas);
-      Serial.print("  Tiempo de respuesta: ");   Serial.println(inyectores[i].tiempoRespuesta);
-      Serial.print("  Corriente de activación: "); Serial.println(inyectores[i].corrienteActivacion);
-      Serial.print("  Temperatura operativa: ");   Serial.println(inyectores[i].temperaturaOperativa);
-      Serial.print("  Sonido de activación: ");    Serial.println(inyectores[i].sonidoActivacion);
-      Serial.println("-------------------------------------------");
-      encontrado = true;
-      break;
-    }
-  }
-  
-  if (!encontrado) {
-    Serial.println("Modelo o nombre no encontrado en inyectores personalizados.");
-  }
-}
-
-// Muestra en una lista todos los inyectores disponibles (de fábrica y personalizados)
-void mostrarTodosInyectores() {
-  Serial.println("\n--- Lista de inyectores disponibles ---");
-  // Inyectores de fábrica
-  for (int i = 0; i < NUM_DEFAULT_INJECTORES; i++) {
-    Serial.print(i + 1);
-    Serial.print(". [Fábrica] ");
-    Serial.println(defaultInyectores[i].modelo);
-  }
-  // Inyectores personalizados
-  for (int j = 0; j < numInyectores; j++) {
-    Serial.print(NUM_DEFAULT_INJECTORES + j + 1);
-    Serial.print(". [Personalizado] ");
-    Serial.println(inyectores[j].modelo);
-  }
-  Serial.println("----------------------------------------");
-}
-
-// Función auxiliar: determina si un valor medido está dentro del ±10% del valor ideal
-bool enRango(float sensor, float ideal) {
-  if (ideal == 0) return (sensor == 0);
-  float tolerancia = ideal * 0.10;
-  return (sensor >= (ideal - tolerancia)) && (sensor <= (ideal + tolerancia));
-}
-
-// Realiza la prueba de un inyector, mostrando primero la lista combinada y luego un submenú para ver características, continuar o volver.
-void testInyector() {
-  mostrarTodosInyectores();
-  
-  int totalInyectores = NUM_DEFAULT_INJECTORES + numInyectores;
-  int seleccion = leerEntero("Seleccione el número del inyector a probar: ");
-  
-  if (seleccion < 1 || seleccion > totalInyectores) {
-    Serial.println("Número de inyector inválido.");
-    return;
-  }
-  
-  InjectorData selectedInyector;
-  if (seleccion <= NUM_DEFAULT_INJECTORES) {
-    selectedInyector = defaultInyectores[seleccion - 1];
-  } else {
-    selectedInyector = inyectores[seleccion - NUM_DEFAULT_INJECTORES - 1];
-  }
-  
-  bool salirSubmenu = false;
-  while (!salirSubmenu) {
-    Serial.println("\nInyector seleccionado: " + String(selectedInyector.modelo));
-    Serial.println("Seleccione una opción:");
-    Serial.println("1. Ver características del inyector");
-    Serial.println("2. Continuar con la prueba");
-    Serial.println("3. Volver al menú principal");
-    int opcionSubmenu = leerEntero("Ingrese su opción: ");
-    
-    if (opcionSubmenu == 1) {
-      Serial.println("\n--- Características del inyector ---");
-      Serial.print("Modelo: ");                   Serial.println(selectedInyector.modelo);
-      Serial.print("Resistencia eléctrica: ");     Serial.println(selectedInyector.resistencia);
-      Serial.print("Caudal de combustible: ");      Serial.println(selectedInyector.caudal);
-      Serial.print("Fugas en reposo: ");           Serial.println(selectedInyector.fugas);
-      Serial.print("Tiempo de respuesta: ");       Serial.println(selectedInyector.tiempoRespuesta);
-      Serial.print("Corriente de activación: ");   Serial.println(selectedInyector.corrienteActivacion);
-      Serial.print("Temperatura operativa: ");       Serial.println(selectedInyector.temperaturaOperativa);
-      Serial.print("Sonido de activación: ");        Serial.println(selectedInyector.sonidoActivacion);
-      Serial.println("------------------------------------");
+    // Leer posición del encoder
+    long newPos = encoder.getCount();
+    if(newPos != encoderPos) {
+      encoderPos = newPos;
+      selected = (int)(encoderPos % numOptions);
+      if(selected < 0) selected += numOptions;
       
-      Serial.println("\n¿Desea continuar con la prueba?");
-      Serial.println("1. Sí, continuar");
-      Serial.println("2. Volver al menú principal");
-      int opcionContinuar = leerEntero("Ingrese su opción: ");
-      if (opcionContinuar == 1) {
-        salirSubmenu = true;
-      } else if (opcionContinuar == 2) {
-        return;
-      } else {
-        Serial.println("Opción no válida, regresando al menú de selección.");
+      // Ajustar el offset para que el elemento seleccionado siempre sea visible
+      if(selected < offset) {
+        offset = selected;
       }
-    } 
-    else if (opcionSubmenu == 2) {
-      salirSubmenu = true;
-    } 
-    else if (opcionSubmenu == 3) {
-      return;
-    } 
-    else {
-      Serial.println("Opción no válida, intente nuevamente.");
+      if(selected >= offset + maxRows) {
+        offset = selected - maxRows + 1;
+      }
     }
-  }
-  
-  // Se continúa con la prueba
-  Serial.print("\nRealizando prueba para el inyector: ");
-  Serial.println(selectedInyector.modelo);
-  
-  float sensorResistencia         = leerFloat("Ingrese el valor medido de Resistencia eléctrica: ");
-  float sensorCaudal              = leerFloat("Ingrese el valor medido de Caudal de combustible: ");
-  float sensorFugas               = leerFloat("Ingrese el valor medido de Fugas en reposo: ");
-  float sensorTiempoRespuesta     = leerFloat("Ingrese el valor medido de Tiempo de respuesta: ");
-  float sensorCorrienteActivacion = leerFloat("Ingrese el valor medido de Corriente de activación: ");
-  float sensorTemperaturaOperativa= leerFloat("Ingrese el valor medido de Temperatura operativa: ");
-  float sensorSonidoActivacion    = leerFloat("Ingrese el valor medido de Sonido de activación: ");
-  
-  bool okResistencia         = enRango(sensorResistencia, selectedInyector.resistencia);
-  bool okCaudal              = enRango(sensorCaudal, selectedInyector.caudal);
-  bool okFugas               = enRango(sensorFugas, selectedInyector.fugas);
-  bool okTiempoRespuesta     = enRango(sensorTiempoRespuesta, selectedInyector.tiempoRespuesta);
-  bool okCorrienteActivacion = enRango(sensorCorrienteActivacion, selectedInyector.corrienteActivacion);
-  bool okTemperaturaOperativa= enRango(sensorTemperaturaOperativa, selectedInyector.temperaturaOperativa);
-  bool okSonidoActivacion    = enRango(sensorSonidoActivacion, selectedInyector.sonidoActivacion);
-  
-  Serial.println("\n--- Resultados de la prueba ---");
-  
-  Serial.print("Resistencia eléctrica: ");
-  Serial.print(sensorResistencia);
-  Serial.print("  | Ideal: ");
-  Serial.print(selectedInyector.resistencia);
-  Serial.print("  | ");
-  Serial.println(okResistencia ? "OK" : "FUERA DE RANGO");
-  
-  Serial.print("Caudal de combustible: ");
-  Serial.print(sensorCaudal);
-  Serial.print("  | Ideal: ");
-  Serial.print(selectedInyector.caudal);
-  Serial.print("  | ");
-  Serial.println(okCaudal ? "OK" : "FUERA DE RANGO");
-  
-  Serial.print("Fugas en reposo: ");
-  Serial.print(sensorFugas);
-  Serial.print("  | Ideal: ");
-  Serial.print(selectedInyector.fugas);
-  Serial.print("  | ");
-  Serial.println(okFugas ? "OK" : "FUERA DE RANGO");
-  
-  Serial.print("Tiempo de respuesta: ");
-  Serial.print(sensorTiempoRespuesta);
-  Serial.print("  | Ideal: ");
-  Serial.print(selectedInyector.tiempoRespuesta);
-  Serial.print("  | ");
-  Serial.println(okTiempoRespuesta ? "OK" : "FUERA DE RANGO");
-  
-  Serial.print("Corriente de activación: ");
-  Serial.print(sensorCorrienteActivacion);
-  Serial.print("  | Ideal: ");
-  Serial.print(selectedInyector.corrienteActivacion);
-  Serial.print("  | ");
-  Serial.println(okCorrienteActivacion ? "OK" : "FUERA DE RANGO");
-  
-  Serial.print("Temperatura operativa: ");
-  Serial.print(sensorTemperaturaOperativa);
-  Serial.print("  | Ideal: ");
-  Serial.print(selectedInyector.temperaturaOperativa);
-  Serial.print("  | ");
-  Serial.println(okTemperaturaOperativa ? "OK" : "FUERA DE RANGO");
-  
-  Serial.print("Sonido de activación: ");
-  Serial.print(sensorSonidoActivacion);
-  Serial.print("  | Ideal: ");
-  Serial.print(selectedInyector.sonidoActivacion);
-  Serial.print("  | ");
-  Serial.println(okSonidoActivacion ? "OK" : "FUERA DE RANGO");
-  
-  if (okResistencia && okCaudal && okFugas && okTiempoRespuesta &&
-      okCorrienteActivacion && okTemperaturaOperativa && okSonidoActivacion) {
-    Serial.println("\nEl inyector PASA la prueba.");
-  } else {
-    Serial.println("\nEl inyector FALLA la prueba.");
+    
+    // Dibujar el menú en la pantalla OLED
+    u8g2.firstPage();
+    do {
+      u8g2.setFont(u8g2_font_6x12_tf);
+      u8g2.drawStr(0, 10, title);
+      
+      // Mostrar sólo "maxRows" elementos a partir del índice "offset"
+      for (int i = 0; i < maxRows; i++) {
+        int idx = offset + i;
+        if(idx >= numOptions) break;
+        int y = 20 + i * 12;
+        if(idx == selected) {
+          u8g2.drawStr(0, y, ">");
+        }
+        u8g2.drawStr(10, y, options[idx]);
+      }
+    } while ( u8g2.nextPage() );
+    
+    // Si se presiona el botón, retorna la opción seleccionada
+    if(digitalRead(botonPin) == LOW) {
+      waitForButtonPress();
+      return selected;
+    }
+    delay(50);
   }
 }
 
-// Borra todos los datos personalizados almacenados en la NVS
-void borrarDatos() {
+// Permite ingresar un valor flotante mediante encoder.
+// 'step' define el incremento, y se muestra el valor actual junto con el prompt.
+float getFloatInput(const char* prompt, float initial, float step, float minVal, float maxVal) {
+  long encoderPos = 0;
+  float value = initial;
+  encoder.clearCount();
+  while (true) {
+    int newPos = encoder.getCount();
+    if(newPos != encoderPos) {
+      encoderPos = newPos;
+      value = initial + (encoderPos * step);
+      if(value < minVal) value = minVal;
+      if(value > maxVal) value = maxVal;
+    }
+    
+    // Dibujar pantalla de entrada
+    char buf[32];
+    sprintf(buf, "%.2f", value);
+    u8g2.firstPage();
+    do {
+      u8g2.setFont(u8g2_font_6x12_tf);
+      u8g2.drawStr(0, 10, prompt);
+      u8g2.drawStr(0, 30, buf);
+      u8g2.drawStr(0, 50, "Gire para ajustar");
+      u8g2.drawStr(0, 62, "Presione para OK");
+    } while ( u8g2.nextPage() );
+    
+    // Si se presiona el botón, confirma y retorna el valor
+    if(digitalRead(botonPin) == LOW) {
+      waitForButtonPress();
+      return value;
+    }
+    delay(50);
+  }
+}
+
+// Muestra un mensaje en la OLED por unos segundos (usado para notificaciones)
+void showMessage(const char* msg, int delayMs=1500) {
+  u8g2.firstPage();
+  do {
+    u8g2.setFont(u8g2_font_6x12_tf);
+    u8g2.drawStr(0, 30, msg);
+  } while ( u8g2.nextPage() );
+  delay(delayMs);
+}
+
+// Permite elegir entre "Usar Default" o "Ingresar valor" para cada parámetro
+float inputParameter(const char* paramName, float defaultVal) {
+  const char* options[2] = {"Usar Default", "Ingresar valor"};
+  char title[40];
+  sprintf(title, "%s?", paramName);
+  int sel = selectMenuOption(title, options, 2);
+  if(sel == 0) {
+    // Mostrar mensaje y retornar valor default
+    char buf[40];
+    sprintf(buf, "Default: %.2f", defaultVal);
+    showMessage(buf, 1000);
+    return defaultVal;
+  } else {
+    // Permite ingresar valor (se parte del default)
+    char prompt[40];
+    sprintf(prompt, "%s (min=0)", paramName);
+    return getFloatInput(prompt, defaultVal, 0.1, 0, 1000);
+  }
+}
+
+// Permite ingresar un string (para el modelo) usando el encoder es complejo;
+// en este ejemplo se asume que para el nombre se usa un valor predefinido o se selecciona de un menú simple.
+String inputModelo() {
+
+  showMessage("Digite el nombre del inyector", 1500);
+  String modelo = tecladoVirtual();
+  // Si el usuario presiona la tecla que indica "cancelar" (por ejemplo, devolviendo una cadena vacía)
+  // puedes asignar un valor por defecto o volver a llamar a la función según lo necesites.
+  if(modelo.length() == 0) {
+    modelo = "ModeloDefault";
+  }
+  return modelo;
+}
+
+// Estado: Agregar un inyector personalizado
+void handleAddInjector() {
+
+  delay(1000);
+  Serial.println("agregando inyector");
+  InjectorData nuevo;
+  // Ingresar (o seleccionar) el modelo
+  String mod = inputModelo();
+  mod.toCharArray(nuevo.modelo, MAX_MODEL_LEN);
+  
+  // Para cada parámetro, se permite usar valor default o ingresar uno
+  // Aquí se usan como referencia los valores de "ModeloA"
+  nuevo.resistencia         = inputParameter("Resistencia", 10.0);
+  nuevo.caudal              = inputParameter("Caudal", 5.0);
+  nuevo.fugas               = inputParameter("Fugas", 0.5);
+  nuevo.tiempoRespuesta     = inputParameter("Tiempo Resp.", 0.8);
+  nuevo.corrienteActivacion = inputParameter("Corriente", 3.2);
+  nuevo.temperaturaOperativa= inputParameter("Temperatura", 80.0);
+  nuevo.sonidoActivacion    = inputParameter("Sonido", 2.5);
+  
+  if(numInyectores < MAX_INJECTORES) {
+    inyectores[numInyectores] = nuevo;
+    numInyectores++;
+    guardarDatos();
+    showMessage("Inyector agregado", 1500);
+  } else {
+    showMessage("Max. inyectores alcanzados", 1500);
+  }
+  estadoActual = AGREGAR_BORRAR_INJ;
+}
+
+// funcion para mostrar los inyectores y seleccionar
+// Función que combina los inyectores y permite seleccionarlos mediante encoder.
+// Retorna la estructura InjectorData del inyector seleccionado.
+
+InjectorData selectInjector() {
+  // Se calcula el total de inyectores disponibles (fábrica + personalizados)
+  int total = NUM_DEFAULT_INJECTORES + numInyectores;
+  
+  // Si no hay inyectores (caso poco probable), se retorna un inyector vacío.
+  if (total == 0) {
+    InjectorData dummy;
+    strcpy(dummy.modelo, "No Inyectores");
+    dummy.resistencia = 0;
+    dummy.caudal = 0;
+    dummy.fugas = 0;
+    dummy.tiempoRespuesta = 0;
+    dummy.corrienteActivacion = 0;
+    dummy.temperaturaOperativa = 0;
+    dummy.sonidoActivacion = 0;
+    return dummy;
+  }
+  
+  // Arreglo para formar las opciones a mostrar en el menú
+  char opciones[total][MAX_MODEL_LEN + 15]; // +15 para incluir etiqueta y espacios
+  // Se agregan primero los inyectores de fábrica
+  for (int i = 0; i < NUM_DEFAULT_INJECTORES; i++) {
+    sprintf(opciones[i], "[F] %s", defaultInyectores[i].modelo);
+  }
+  // Luego, se agregan los inyectores personalizados
+  for (int j = 0; j < numInyectores; j++) {
+    sprintf(opciones[NUM_DEFAULT_INJECTORES + j], "[P] %s", inyectores[j].modelo);
+  }
+  
+  // Convertir el arreglo a un arreglo de punteros a char
+  const char* opts[total];
+  for (int i = 0; i < total; i++) {
+    opts[i] = opciones[i];
+  }
+  
+  // Mostrar el menú y obtener la selección mediante encoder
+  int sel = selectMenuOption("Seleccione inyector", opts, total);
+  
+  // Retornar el inyector correspondiente según la selección
+  if (sel < NUM_DEFAULT_INJECTORES) {
+    return defaultInyectores[sel];
+  } else {
+    return inyectores[sel - NUM_DEFAULT_INJECTORES];
+  }
+}
+
+// Estado: Mostrar datos de un inyector personalizado
+void handleShowInjector() {
+
+  // Crear un arreglo de opciones con los nombres de los inyectores personalizados
+  const int total = numInyectores;
+  char opciones[total][MAX_MODEL_LEN];
+  for(int i = 0; i < total; i++) {
+    strncpy(opciones[i], inyectores[i].modelo, MAX_MODEL_LEN);
+  }
+  // Convertir arreglo de char* para el menú
+  const char* opts[total];
+  for (int i = 0; i < total; i++) {
+    opts[i] = opciones[i];
+  }
+  int sel = selectMenuOption("Inyectores:", opts, total);
+  InjectorData selected = inyectores[sel];
+  
+  // Mostrar detalles en la pantalla (puede mostrar varios renglones)
+  u8g2.firstPage();
+  do {
+    u8g2.setFont(u8g2_font_6x12_tf);
+    u8g2.drawStr(0, 10, selected.modelo);
+    char buf[32];
+    sprintf(buf, "Res:%.2fCaudal:%.2f", selected.resistencia, selected.caudal);
+    u8g2.drawStr(0, 22, buf);
+    sprintf(buf, "Fugas:%.2fTiempo:%.2f", selected.fugas, selected.tiempoRespuesta);
+    u8g2.drawStr(0, 34, buf);
+    sprintf(buf, "Corr: %.2fTemp:%.2f", selected.corrienteActivacion, selected.temperaturaOperativa);
+    u8g2.drawStr(0, 46, buf);
+    sprintf(buf, "Sonido:%.2f", selected.sonidoActivacion);
+    u8g2.drawStr(0, 58, buf);
+  } while(u8g2.nextPage());
+  delay(5000);
+  estadoActual= SELECCIONAR_MOTO;
+}
+
+// Estado: Realizar prueba de un inyector seleccionar inyector
+void handleTestInjector() {
+  // Se mostrará una lista combinada de inyectores de fábrica y personalizados
+  delay(1000);
+  const int totalInyectores = NUM_DEFAULT_INJECTORES + numInyectores;
+  char opciones[totalInyectores][MAX_MODEL_LEN + 15]; // para indicar fuente
+  for (int i = 0; i < NUM_DEFAULT_INJECTORES; i++) {
+    sprintf(opciones[i], "[F] %s", defaultInyectores[i].modelo);
+  }
+  for (int j = 0; j < numInyectores; j++) {
+    sprintf(opciones[NUM_DEFAULT_INJECTORES + j], "[P] %s", inyectores[j].modelo);
+  }
+  const char* opts[totalInyectores];
+  for (int i = 0; i < totalInyectores; i++) {
+    opts[i] = opciones[i];
+  }
+  int sel = selectMenuOption("Seleccione inyector", opts, totalInyectores);
+  
+  InjectorData selected;
+  if(sel < NUM_DEFAULT_INJECTORES) {
+    selected = defaultInyectores[sel];
+  } else {
+    selected = inyectores[sel - NUM_DEFAULT_INJECTORES];
+  }
+  estadoActual = SELECCIONAR_MOTO;
+  // Submenú para ver características o continuar con la prueba
+  // const char* submenuOpts[] = {"Ver Caracteristicas", "Continuar prueba", "Volver"};
+  // int subSel = selectMenuOption("Inyector: ", submenuOpts, 3);
+  // if(subSel == 0) {
+  //   // Mostrar detalles del inyector
+  //   u8g2.firstPage();
+  //   do {
+  //     u8g2.setFont(u8g2_font_6x12_tf);
+  //     u8g2.drawStr(0, 10, selected.modelo);
+  //     char buf[32];
+  //     sprintf(buf, "Res: %.2f  Caudal: %.2f", selected.resistencia, selected.caudal);
+  //     u8g2.drawStr(0, 22, buf);
+  //     sprintf(buf, "Fugas: %.2f  Tiempo: %.2f", selected.fugas, selected.tiempoRespuesta);
+  //     u8g2.drawStr(0, 34, buf);
+  //     sprintf(buf, "Corr: %.2f Temp: %.2f", selected.corrienteActivacion, selected.temperaturaOperativa);
+  //     u8g2.drawStr(0, 46, buf);
+  //     sprintf(buf, "Sonido: %.2f", selected.sonidoActivacion);
+  //     u8g2.drawStr(0, 58, buf);
+  //   } while(u8g2.nextPage());
+  //   delay(3000);
+  //   currentState = STATE_MAIN_MENU;
+  //   return;
+  // } else if(subSel == 2) {
+  //   currentState = STATE_MAIN_MENU;
+  //   return;
+  // }
+  
+  // // Si se continua, se solicita al usuario ingresar los valores medidos (aquí se usan métodos simples con encoder)
+  // float sensorResistencia = getFloatInput("Resistencia medida:", 0, 0.1, 0, 1000);
+  // float sensorCaudal = getFloatInput("Caudal medido:", 0, 0.1, 0, 1000);
+  // float sensorFugas = getFloatInput("Fugas medida:", 0, 0.1, 0, 1000);
+  // float sensorTiempo = getFloatInput("Tiempo medido:", 0, 0.1, 0, 1000);
+  // float sensorCorriente = getFloatInput("Corriente medida:", 0, 0.1, 0, 1000);
+  // float sensorTemperatura = getFloatInput("Temp. medida:", 0, 0.1, 0, 1000);
+  // float sensorSonido = getFloatInput("Sonido medido:", 0, 0.1, 0, 1000);
+  
+  // // Se realiza la comparación (tolerancia ±10%)
+  // auto enRango = [](float sensor, float ideal) -> bool {
+  //   if(ideal == 0) return (sensor == 0);
+  //   float tol = ideal * 0.10;
+  //   return (sensor >= (ideal - tol)) && (sensor <= (ideal + tol));
+  // };
+  
+  // bool okRes = enRango(sensorResistencia, selected.resistencia);
+  // bool okCau = enRango(sensorCaudal, selected.caudal);
+  // bool okFug = enRango(sensorFugas, selected.fugas);
+  // bool okTiempo = enRango(sensorTiempo, selected.tiempoRespuesta);
+  // bool okCorr = enRango(sensorCorriente, selected.corrienteActivacion);
+  // bool okTemp = enRango(sensorTemperatura, selected.temperaturaOperativa);
+  // bool okSon = enRango(sensorSonido, selected.sonidoActivacion);
+  
+  // // Mostrar resultado global (se podrían detallar cada parámetro en una pantalla adicional)
+  // u8g2.firstPage();
+  // do {
+  //   u8g2.setFont(u8g2_font_6x12_tf);
+  //   if(okRes && okCau && okFug && okTiempo && okCorr && okTemp && okSon) {
+  //     u8g2.drawStr(0, 30, "Inyector PASA la prueba");
+  //   } else {
+  //     u8g2.drawStr(0, 30, "Inyector FALLA la prueba");
+  //   }
+  // } while(u8g2.nextPage());
+  // delay(3000);
+  // currentState = STATE_MAIN_MENU;
+}
+
+// Estado: Borrar datos personalizados
+void handleDeleteData() {
   numInyectores = 0;
   guardarDatos();
-  Serial.println("Todos los datos personalizados han sido borrados.");
+  showMessage("Datos borrados", 1500);
+  estadoActual = AGREGAR_BORRAR_INJ;
 }
 
-// -------------------- Menú y Flujo Principal --------------------
+// -----------------------------------------------------------------------------
+// IMPLEMENTACIÓN DE LAS PRUEBAS (estas funciones pueden basarse en lecturas ADC, etc.)
+// Los siguientes ejemplos son esquemáticos y deberán ajustarse según tus sensores y calibración.
+// -----------------------------------------------------------------------------
 
-void mostrarMenu2() {
-  Serial.println("\n--- Menú Principal ---");
-  Serial.println("1. Agregar datos de un inyector personalizado");
-  Serial.println("2. Mostrar datos de un inyector personalizado");
-  Serial.println("3. Realizar prueba de un inyector");
-  Serial.println("4. Borrar todos los datos personalizados");
-  Serial.print("Seleccione una opción: ");
-}
-
-void setup_save() {
-  cargarDatos();
-  Serial.println("Banco de prueba de inyectores automáticos para motocicletas");
-  mostrarMenu2();
-}
-
-void loop_save() {
-        if (Serial.available()) {
-            String opcion = Serial.readStringUntil('\n');
-            opcion.trim();
-            
-            if (opcion == "1") {
-              agregarInyector();
-            } 
-            else if (opcion == "2") {
-              mostrarInyector();
-            } 
-            else if (opcion == "3") {
-              testInyector();
-            } 
-            else if (opcion == "4") {
-              borrarDatos();
-            } 
-            else {
-              Serial.println("Opción inválida. Intente nuevamente.");
-            }
-            mostrarMenu2();
-          }
-}
+// 1. Prueba de Resistencia Eléctrica  

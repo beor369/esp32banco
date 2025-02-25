@@ -10,10 +10,6 @@
 #define ENCODER_PIN_A 42
 #define ENCODER_PIN_B 41
 
-// Pines de comunicación UART con ESP32-CAM
-#define UART_CAM_RX 16
-#define UART_CAM_TX 17
-
 // Pin del botón del encoder
 const int botonPin = 40;
 #define DEBOUNCE_DELAY 10  // Tiempo de debounce en milisegundos
@@ -34,6 +30,9 @@ enum Estado {
   SUBMENU_FUGAS,
   SUBMENU_CLICK,
   SUBMENU_ABANICO,
+  SUBMENU_TEMPERATURA,
+  SUBMENU_TIEMPO_RESPUESTA,
+  SUBMENU_CORRIENTE_ACTIVACION,
   SUBMENU_RESULTADOS,
   SUBMENU_FUNCIONAMIENTO,
   AYUDA,
@@ -44,6 +43,7 @@ enum Estado {
   ATRASITO,
   SELECCIONAR_MOTO,
   SIGUIENTE,
+  ATRASSE,
   MENU_CONFIRMA_MOTO,
   AGREGAR_BORRAR_INJ,
   AGREGAR,
