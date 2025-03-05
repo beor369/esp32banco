@@ -9,3 +9,4 @@ void manejarEstado();
 void actualizarIndice(bool incremento);
 
 #endif
+

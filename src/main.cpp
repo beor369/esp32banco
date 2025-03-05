@@ -5,6 +5,8 @@
 #include "menu/Menu.h"
 #include "tecladovirtual/TecladoVirtual.h"
 #include "saveInjector/saveInjector.h"
+#include "pruebas/activatebankofproof/activatebankofproof.h"
+#include "selectrpm/selectrpm.h"
 
 // Instanciar objetos globalmente
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, U8X8_PIN_NONE, 20, 21);
@@ -41,10 +43,19 @@ void setup()
   setupEncoder();
   mostrarMenu(); // Muestra el menú inicial
   cargarDatos();
+  setupbit(); 
+  setupbomba();
+  // setupPWM();
+  // setupmic();
+  setupi();
+  setupselectrpm();
 }
 
 void loop()
 {
+ 
+  updateBuzzer();
   displayEncoderPosition();
+  updateEncoderParameters();
   // Otras tareas que necesites ejecutar en el loop
 }

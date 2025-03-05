@@ -2,7 +2,7 @@
 #include <Arduino.h>
  #include "saveInjector/saveInjector.h"
  #include "Menu/Menu.h"
-
+#include "config.h"
 
 // -----------------------------------------------------------------------------
 // IMPLEMENTACIÓN DE LAS PRUEBAS (estas funciones pueden basarse en lecturas ADC, etc.)
@@ -122,62 +122,6 @@ TestResult runTestTemperatura(InjectorData selected) {
   return monitorTemperatura(80.0);  // Umbral fijo de 80°C
 }
 
-// -----------------------------------------------------------------------------
-// Funciones para ejecutar las pruebas en modos manual y automático.
-// -----------------------------------------------------------------------------
-
-//Modo Manual: el usuario elige qué prueba ejecutar, en el orden que desee.
-//  void runTestsManual(InjectorData selected) {
-//   const char* testOptions[] = {
-//     "Resistencia",
-//     "Fugas",
-//     "Sonido",
-//     "Corriente",
-//     "Tiempo Resp.",
-//     "Caudal",
-//     "Temperatura",
-//     "Salir"
-//   };
-//   const int numTestOptions = 8;
-//   bool exitMenu = false;
-  
-//   while (!exitMenu) {
-//     int sel = selectMenuOption("Test Manual", testOptions, numTestOptions);
-//     TestResult result;
-//     switch(sel) {
-//       case 0:
-//         result = runTestResistencia(selected);
-//         break;
-//       case 1:
-//         result = runTestFugas(selected);
-//         break;
-//       case 2:
-//         result = runTestSonido(selected);
-//         break;
-//       case 3:
-//         result = runTestCorriente(selected);
-//         break;
-//       case 4:
-//         result = runTestTiempoRespuesta(selected);
-//         break;
-//       case 5:
-//         result = runTestCaudal(selected);
-//         break;
-//       case 6:
-//         result = runTestTemperatura(selected);
-//         break;
-//       case 7:
-//         exitMenu = true;
-//         continue;
-//     }
-//     // Mostrar resultados en el monitor serial (puedes adaptarlo a OLED)
-//     Serial.print(testOptions[sel]);
-//     Serial.print(": Valor = ");
-//     Serial.print(result.measuredValue);
-//     Serial.println(result.passed ? " OK" : " FALLA");
-//     delay(2000);
-//   }
-// }
 
 // Modo Automático: se ejecutan todas las pruebas en secuencia.
 void runTestsAutomatic(InjectorData selected) {

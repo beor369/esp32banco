@@ -2,6 +2,8 @@
 #include "displayhandler/DisplayHandler.h"
 #include "saveInjector/saveInjector.h"
 #include "pruebas/pruebas.h"
+#include "pruebas/activatebankofproof/activatebankofproof.h"
+#include "selectrpm/selectrpm.h"
 // Declaración de variables globales (definidas en main.cpp)
 extern int indiceMenu;
 extern int indiceInyector;
@@ -44,6 +46,7 @@ void mostrarMenu()
     }
     break;
   case MENU_SELECCION_INYECTOR:
+     beep();
      handleTestInjector();
     break;
   case SUBMENU_FUNCIONAMIENTO:
@@ -71,6 +74,7 @@ void mostrarMenu()
     }
     break;
   case MENU_CARACTERISTICAS:
+    
     handleShowInjector();
 
      break;
@@ -96,9 +100,11 @@ void mostrarMenu()
  
   break;
   case SUBMENU_FUGAS:
-
+  loopi();
   break;
   case SUBMENU_CLICK:
+  pruebaClic();
+  delay(2000); // Prueba cada 2 segundos
 
   break;
   case SUBMENU_CORRIENTE_ACTIVACION:
@@ -119,6 +125,12 @@ void mostrarMenu()
   case ATRASITO:
 
   break;
+  case AYUDA:
+  //loopi();
+  loopselectrpm();
+   //pruebaClic();
+  // delay(2000); // Prueba cada 2 segundos
+  break;  
   default:
     break;
   }
