@@ -56,6 +56,6 @@ void loop()
  
   updateBuzzer();
   displayEncoderPosition();
-  updateEncoderParameters();
+  // updateEncoderParameters();
   // Otras tareas que necesites ejecutar en el loop
 }
