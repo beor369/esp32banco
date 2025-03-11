@@ -3,6 +3,8 @@
 
 #include <Arduino.h>
 #include "saveInjector/saveInjector.h"
+ 
+
 // // Estructura para almacenar el resultado de una prueba
 struct TestResult {
   bool passed;          // true si la prueba se aprueba
@@ -42,5 +44,7 @@ TestResult runTestTemperatura(InjectorData selected);
 // Funciones para ejecutar las pruebas en modo manual y automático.
 void runTestsManual(InjectorData selected);
 void runTestsAutomatic(InjectorData selected);
-
+void setupbit();
+void updateBuzzer();
+void beep();
 #endif  // PRUEBAS_H

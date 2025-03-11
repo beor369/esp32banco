@@ -2,6 +2,9 @@
 #include "Menu/Menu.h"
 #include "config.h"
 #include <U8g2lib.h>
+#include "selectrpm/selectrpm.h"
+#include <Arduino.h>
+#include "InjectorController/InjectorController.h"
 // #include <ESP32Encoder.h>
 //  #include "encoderhadler/EncoderHandler.h"
 //  ============================
@@ -9,26 +12,14 @@
 //  ============================
 //  ESP32Encoder encoder;
 
-#define MAX_RPM 10000       // Límite máximo de RPM
-#define MAX_PULSE_WIDTH 100 // Límite máximo de ancho de pulso (ms)
-#define MAX_TEST_TIME 60000 // Límite máximo de tiempo de prueba (ms)
 
-// ============================
-// Estados del Menú y Variables de Parámetros
-// ============================
-enum State
-{
-  SELECT_RPM,
-  SELECT_PULSE,
-  SELECT_TIME,
-  RUN_TEST
-};
+
+
 State currentState = SELECT_RPM;
 
-// Valores base iniciales
-extern long rpmValue = 1000;       // Base 1000 RPM
-extern long pulseWidthValue = 10;  // Base 10 ms
-extern long testTimeValue = 10000; // Base 10,000 ms (10 s)
+long rpmValue = 1200;       // Base 1000 RPM
+long pulseWidthValue = 2;  // Base 10 ms
+long  testTimeValue = 50000; // Base 10,000 ms (10 s)
 
 // Variables para debounce del botón
 unsigned long lastButtonPress = 0;
@@ -89,9 +80,11 @@ void displayMenu()
 // ============================
 void activarInyector(unsigned long tiempoOn, unsigned long tiempoOff = 0)
 {
-  digitalWrite(INYECTOR_PIN, HIGH);
-  delay(tiempoOn);
-  digitalWrite(INYECTOR_PIN, LOW);
+ 
+
+digitalWrite(INYECTOR_PIN, HIGH);
+delay(tiempoOn);
+digitalWrite(INYECTOR_PIN, LOW);
   if (tiempoOff > 0)
   {
     delay(tiempoOff);
@@ -99,28 +92,52 @@ void activarInyector(unsigned long tiempoOn, unsigned long tiempoOff = 0)
 }
 
 // ============================
-// Función para Simular la Prueba de Llenado
-// ============================
-void simularRPM(unsigned int rpm, unsigned long testDuration, unsigned long pulseTime)
-{
+void simularRPM(unsigned int rpm, unsigned long testDuration, unsigned long pulseTime) {
   // Calcula el período (ms) para cada pulso según las RPM
+     // Cuenta regresiva mostrada en la pantalla
+     unsigned long tiempoSeg = testTimeValue / 1000; // Conversión a segundos
+
+  // for (unsigned long i = tiempoSeg; i > 0; i--) {
+    // Muestra la configuración inicial de la prueba
+      // Ejecuta la prueba según los parámetros seleccionados
+
+u8g2.clearBuffer();
+
+u8g2.setFont(u8g2_font_ncenB08_tr);
+u8g2.drawStr(0, 10, "Iniciando prueba");
+char buf[32];
+sprintf(buf, "RPM: %ld", rpmValue);
+u8g2.drawStr(0, 25, buf);
+sprintf(buf, "Pulso: %ld ms", pulseWidthValue);
+u8g2.drawStr(0, 40, buf);
+  // sprintf(buf, "Tiempo: %lus", i);
+  sprintf(buf, "Tiempo: %ld s", testTimeValue / 1000);
+  u8g2.drawStr(0, 55, buf);
+  u8g2.sendBuffer();
+  // delay(1000);
+  digitalWrite(BOMBA_PIN, LOW);
+delay(2000);
+ 
+// }
   unsigned long periodo = 60000UL / rpm;
-  // Asegura que el ancho de pulso no sea mayor que el período
-  if (pulseTime >= periodo)
-  {
+  if (pulseTime >= periodo) {
     pulseTime = periodo / 2;
   }
-
+  
   unsigned long startTime = millis();
-  while (millis() - startTime < testDuration)
-  {
+  unsigned long endTime = startTime + testDuration;
+  
+  while (millis() < endTime) {
+    // Activa el inyector durante el ancho de pulso definido
     activarInyector(pulseTime);
+    
+    // Espera el resto del período para mantener la frecuencia según RPM
     unsigned long espera = periodo - pulseTime;
-    if (espera > 0)
-    {
+    if (espera > 0) {
       delay(espera);
     }
   }
+  digitalWrite(BOMBA_PIN, HIGH);
 }
 
 // ============================
@@ -129,8 +146,11 @@ void simularRPM(unsigned int rpm, unsigned long testDuration, unsigned long puls
 void setupselectrpm()
 {
   pinMode(INYECTOR_PIN, OUTPUT);
+  pinMode(BOMBA_PIN, OUTPUT);
+ digitalWrite(INYECTOR_PIN,LOW);
+ digitalWrite(BOMBA_PIN,HIGH);
 
-  displayMenu();
+  // displayMenu();
 }
 
 void actualizarIndic(bool incremento)
@@ -146,9 +166,9 @@ void actualizarIndic(bool incremento)
 
     if (currentState == SELECT_PULSE)
     {
-      pulseWidthValue += 10;
-      if (pulseWidthValue > 100)
-        pulseWidthValue = 100; // Límite superior
+      pulseWidthValue += 1;
+      if (pulseWidthValue > 20)
+        pulseWidthValue = 20; // Límite superior
     }
 
     if (currentState == SELECT_TIME)
@@ -163,22 +183,22 @@ void actualizarIndic(bool incremento)
     if (currentState == SELECT_RPM)
     {
       rpmValue -= 500;
-      if (rpmValue < 0)
-        rpmValue = 0; // Límite inferior
+      if (rpmValue < 1200)
+        rpmValue = 1200; // Límite inferior
     }
 
     if (currentState == SELECT_PULSE)
     {
-      pulseWidthValue -= 10;
-      if (pulseWidthValue < 10)
-        pulseWidthValue = 10; // Límite inferior
+      pulseWidthValue -= 1;
+      if (pulseWidthValue < 2)
+        pulseWidthValue = 2; // Límite inferior
     }
 
     if (currentState == SELECT_TIME)
     {
       testTimeValue -= 50000;
-      if (testTimeValue < 0)
-        testTimeValue = 0; // Límite inferior
+      if (testTimeValue < 10000)
+        testTimeValue = 10000; // Límite inferior
     }
   }
 
@@ -223,7 +243,7 @@ void checkEncoderButton()
         encoder.clearCount();
         break;
       case SELECT_TIME:
-        currentState = RUN_TEST;
+        estadoActual=SELECCIONAR_MOTO;
         break;
       default:
         break;
@@ -265,36 +285,6 @@ void loopselectrpm()
   // Actualiza el menú en la pantalla
   displayMenu();
 
-  // Cuando se confirma la selección (estado RUN_TEST), se ejecuta la prueba
-  if (currentState == RUN_TEST)
-  {
-    u8g2.clearBuffer();
-    u8g2.setFont(u8g2_font_ncenB08_tr);
-    u8g2.drawStr(0, 10, "Iniciando prueba de llenado");
-    char buf[32];
-    sprintf(buf, "RPM: %ld", rpmValue);
-    u8g2.drawStr(0, 25, buf);
-    sprintf(buf, "Pulso: %ld ms", pulseWidthValue);
-    u8g2.drawStr(0, 40, buf);
-    sprintf(buf, "Tiempo: %ld s", testTimeValue / 1000);
-    u8g2.drawStr(0, 55, buf);
-    u8g2.sendBuffer();
-    delay(1000);
-
-    // Ejecuta la prueba según los parámetros seleccionados
-    simularRPM(rpmValue, testTimeValue, pulseWidthValue);
-
-    u8g2.clearBuffer();
-    u8g2.setFont(u8g2_font_ncenB08_tr);
-    u8g2.drawStr(0, 30, "Prueba finalizada");
-    u8g2.sendBuffer();
-    delay(2000);
-
-    // Reinicia el menú para una nueva selección
-    currentState = SELECT_RPM;
-    encoder.clearCount();
-    displayMenu();
-  }
-
+  encoder.clearCount();
   delay(100); // Pequeña pausa para no saturar la CPU
 }

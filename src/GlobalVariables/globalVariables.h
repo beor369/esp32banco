@@ -23,5 +23,5 @@ public:
         injector = newInjector;
     }
 };
-extern GlobalInjector globalInjector;
+extern  ;
 #endif // GLOBAL_VARIABLES_H

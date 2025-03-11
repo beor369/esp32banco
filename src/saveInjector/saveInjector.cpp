@@ -28,9 +28,9 @@ uint8_t numInyectores = 0;
 
 // Datos de fábrica (por defecto)
 const InjectorData defaultInyectores[NUM_DEFAULT_INJECTORES] = {
-    {"ModeloA", 10.0, 5.0, 0.5, 0.8, 3.2, 80.0, 2.5},
-    {"ModeloB", 12.0, 6.0, 0.4, 1.0, 3.0, 85.0, 2.0},
-    {"ModeloC", 9.5, 5.5, 0.6, 0.7, 3.5, 78.0, 2.7}};
+    {"ModeloA", 10.0, 5.0, 0.5, 0.8, 3.2, 80.0, 40.0},
+    {"ModeloB", 12.0, 6.0, 0.4, 1.0, 3.0, 85.0, 40.0},
+    {"ModeloC", 9.5, 5.5, 0.6, 0.7, 3.5, 78.0, 40.0}};
 
 // ====== FUNCIONES DE NVS ======
 void cargarDatos()
@@ -395,7 +395,7 @@ void handleTestInjector()
     global.setInjector(selected);
   }
 
-  estadoActual = SELECCIONAR_MOTO;
+  estadoActual = SELECCIONAR_RPM_TIME;
 }
  
 

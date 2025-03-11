@@ -6,6 +6,14 @@
 #include <ESP32Encoder.h>
 #include <EEPROM.h>
 #include "pruebas/activatebankofproof/activatebankofproof.h"
+#include "InjectorController/InjectorController.h"
+
+#include "pruebas/pruebas.h"
+
+
+// Lee la temperatura en grados Celsius
+
+
 
 // Pines del encoder
 #define ENCODER_PIN_A 41
@@ -18,39 +26,35 @@ const int botonPin = 40;
 // Pin del buzzer
 #define BUZZER_PIN 19
 // Pine de relay bomba
-#define PIN_BOMBA 17
+#define BOMBA_PIN 17
 extern bool bombaActiva; // Variable para rastrear el estado
 //pin relay inyector
 #define PIN_RELAY_INYECTOR_ALIM 13
 #define INYECTOR_PIN 12
+//extern int pinled = 2;
 // Configuración del PWM
-#define PIN_INYECTOR_PWM 9  // Pin conectado al MOSFET (ej: GPIO9)
+#define PIN_INYECTOR_PWM 5  // Pin conectado al MOSFET (ej: GPIO9)
 #define PWM_CHANNEL 0       // Canal PWM (0-15)
 #define PWM_FREQ 100        // Frecuencia en Hz (ajusta según el inyector)
 #define PWM_RESOLUTION 8    // Resolución de 8 bits (0-255)
-
+#define pinraro 18
 // Variables de control
 extern bool inyectorActivo;
 // Pines de los sensores
 //PIN ACS712
-#define PIN_CORRIENTE 4
+#define PIN_CORRIENTE 30
 //PIN F-S201
-#define PIN_FLUJO 5
+#define PIN_FLUJO 39
 //Termistor NTC
 #define PIN_TEMP 6
 // SENSOR DE SONIDO
 #define PIN_SONIDO 7       // GPIO7 (ADC1_CH6)
-#define UMBRAL_CLIC 2000   // Ajustar según el sensor (valor empírico)
-#define TIEMPO_ESPERA 50   // Máximo tiempo para detectar clic (ms)
+#define UMBRAL_CLIC 10000   // Ajustar según el sensor (valor empírico)
+#define TIEMPO_ESPERA 50 // Máximo tiempo para detectar clic (ms)
 
 // Variables
 extern bool clicDetectado;
 
-// Configuración PWM (usando ledc)
-extern const int pwmChannell;
-extern const int pwmFreqq;    // Hz
-extern const int pwmResolutionn;
-#define LED_STATUS 2
 
 
 // Tamaño de la EEPROM
@@ -81,6 +85,7 @@ enum Estado {
   MENU_CARACTERISTICAS,
   ATRASITO,
   SELECCIONAR_MOTO,
+  SELECCIONAR_RPM_TIME,
   SIGUIENTE,
   ATRASSE,
   MENU_CONFIRMA_MOTO,

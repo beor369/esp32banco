@@ -4,6 +4,9 @@
 #include "pruebas/pruebas.h"
 #include "pruebas/activatebankofproof/activatebankofproof.h"
 #include "selectrpm/selectrpm.h"
+#include "flow_sensor/flow_sensor.h"
+
+#include "InjectorController/InjectorController.h"
 // Declaración de variables globales (definidas en main.cpp)
 extern int indiceMenu;
 extern int indiceInyector;
@@ -12,7 +15,6 @@ extern int indicefuncionamiento;
 extern int indiceseleccionarmoto;
 extern int indiceagregarborrarinjt;
 extern Estado estadoActual;
-
 
 extern U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2;
 
@@ -25,7 +27,7 @@ static const int tamaniosubMenuFuncionamiento = sizeof(submenuFuncionamientoImag
 
 static const char *submenuManualImagenes[] = {
     "prueba_medir_resistencia", "prueba_fugas", "prueba_medir_clic", "prueba_corriente_activacion",
-    "prueba_tiempo_respuesta", "prueba_flujo", "prueba_temperatura""resultados", "atrasitoo"};
+    "prueba_tiempo_respuesta", "prueba_flujo", "prueba_temperatura","resultados","atrasitoo"};
 static const int tamanioSubMenuManual = sizeof(submenuManualImagenes) / sizeof(submenuManualImagenes[0]);
 
 static const char *agregarBorrarImagenes[] = {"AGREGAR_INJ", "BORRAR_INJ", "ATRASAGREGARINYECTOR_INJ"};
@@ -46,8 +48,11 @@ void mostrarMenu()
     }
     break;
   case MENU_SELECCION_INYECTOR:
-     beep();
-     handleTestInjector();
+    //beep();
+    handleTestInjector();
+    break;
+  case SELECCIONAR_RPM_TIME:
+    loopselectrpm();
     break;
   case SUBMENU_FUNCIONAMIENTO:
     if (indicefuncionamiento >= 0 && indicefuncionamiento < tamaniosubMenuFuncionamiento)
@@ -73,11 +78,12 @@ void mostrarMenu()
       dibujarImagen(seleccionarMotoImagenes[indiceseleccionarmoto]);
     }
     break;
+
   case MENU_CARACTERISTICAS:
-    
+
     handleShowInjector();
 
-     break;
+    break;
   case AGREGAR:
     Serial.println("hola voy agregar");
     handleAddInjector();
@@ -87,50 +93,83 @@ void mostrarMenu()
     handleDeleteData();
     break;
   case SUBMENU_MID_RES:
-  InjectorData selected;
-  //  runTestsAutomatic( selected);
+  beep();
+    InjectorData selected;
+    //  runTestsAutomatic( selected);
     TestResult result;
-    
+
     result = runTestResistencia(selected);
     Serial.print("Resistencia: ");
     Serial.print(result.measuredValue);
     Serial.println(result.passed ? " OK" : " FALLA");
     delay(1000);
 
- 
-  break;
+    break;
   case SUBMENU_FUGAS:
-  loopi();
-  break;
+  // Test de Fugas
+  char outputt[50];
+  result = runTestFugas(selected);
+  sprintf(outputt, "Fugas: %.2f %s", result.measuredValue, result.passed ? "OK" : "FALLA");
+  u8g2.clearBuffer();
+  u8g2.drawStr(0, 12, outputt);
+  u8g2.sendBuffer();
+  delay(5000);
+
+estadoActual=SUBMENU_MANUAL;
+
+    break;
   case SUBMENU_CLICK:
-  pruebaClic();
-  delay(2000); // Prueba cada 2 segundos
-
-  break;
+  char output[50];
+    u8g2.clearBuffer();
+    Serial.println("SUBMENU CLICK");
+    
+    // pruebaClic();
+    // inyector.activarInyectorDesdeEncoder();
+    result = runTestSonido(selected);
+    sprintf(output, "Sonido: %.2f %s", result.measuredValue, result.passed ? "OK" : "FALLA");
+    u8g2.clearBuffer();
+    u8g2.drawStr(0, 12, output);
+    u8g2.sendBuffer();
+    delay(1000);
+    estadoActual=SUBMENU_MANUAL;
+    break;
   case SUBMENU_CORRIENTE_ACTIVACION:
-
-  break;
+ 
+  
+    break;
   case SUBMENU_TIEMPO_RESPUESTA:
 
-  break;
+    break;
   case SUBMENU_FLUJO:
-
-  break;
+  setupvalues();
+    break;
   case SUBMENU_TEMPERATURA:
+  char outputtt[50];
+  result = runTestTemperatura(selected);
+  sprintf(outputtt, "Temperatura: %.2f %s", result.measuredValue, result.passed ? "OK" : "FALLA");
+  u8g2.clearBuffer();
+  u8g2.drawStr(0, 12, outputtt);
+  u8g2.sendBuffer();
+  delay(2000);
+ 
+  estadoActual=SUBMENU_MANUAL;
 
-  break;
+    break;
   case SUBMENU_RESULTADOS:
 
-  break;
+    break;
   case ATRASITO:
 
-  break;
+    break;
+
   case AYUDA:
-  //loopi();
-  loopselectrpm();
-   //pruebaClic();
-  // delay(2000); // Prueba cada 2 segundos
-  break;  
+    //  // Prueba 3: 2 Hz, 1000 µs (umbral crítico)
+      inyector.activate(50.0, 2000, 10);
+      // delay(10000);
+ // delay(10000);
+  // Detener manualmente:
+  // inyector.stop();
+    break;
   default:
     break;
   }
@@ -177,6 +216,10 @@ void manejarEstado()
   case MENU_SELECCION_INYECTOR:
     // Ejemplo: al seleccionar un inyector, pasar al menú de selección de motocicleta
     estadoActual = SELECCIONAR_MOTO;
+    // currentState = SELECT_RPM;
+    break;
+  case SELECCIONAR_RPM_TIME:
+
     break;
   case SELECCIONAR_MOTO:
     if (indiceseleccionarmoto == 0)
@@ -192,7 +235,7 @@ void manejarEstado()
       estadoActual = MENU_PRINCIPAL;
     }
     break;
-    case SUBMENU_FUNCIONAMIENTO:
+  case SUBMENU_FUNCIONAMIENTO:
     if (indicefuncionamiento == 0)
     {
       estadoActual = SUBMENU_MANUAL;
@@ -206,7 +249,7 @@ void manejarEstado()
       estadoActual = SELECCIONAR_MOTO;
     }
     break;
-    case SUBMENU_MANUAL:
+  case SUBMENU_MANUAL:
     if (indiceSubSubMenu == 0)
     {
       estadoActual = SUBMENU_MID_RES;
@@ -217,7 +260,7 @@ void manejarEstado()
     }
     else if (indiceSubSubMenu == 2)
     {
-      estadoActual = SUBMENU_CLICK ;
+      estadoActual = SUBMENU_CLICK;
     }
     else if (indiceSubSubMenu == 3)
     {
@@ -225,24 +268,24 @@ void manejarEstado()
     }
     else if (indiceSubSubMenu == 4)
     {
-      estadoActual =  SUBMENU_TIEMPO_RESPUESTA;
+      estadoActual = SUBMENU_TIEMPO_RESPUESTA;
     }
     else if (indiceSubSubMenu == 5)
     {
       estadoActual = SUBMENU_FLUJO;
     }
     else if (indiceSubSubMenu == 6)
-      {
-        estadoActual = SUBMENU_TEMPERATURA;
-      }
+    {
+      estadoActual = SUBMENU_TEMPERATURA;
+    }
     else if (indiceSubSubMenu == 7)
-      {
-        estadoActual = SUBMENU_RESULTADOS;
-      }
+    {
+      estadoActual = SUBMENU_RESULTADOS;
+    }
     else if (indiceSubSubMenu == 8)
-      {
-        estadoActual = ATRASITO;
-      }
+    {
+      estadoActual = ATRASITO;
+    }
     break;
   // Agrega más casos según lo requiera tu lógica
   default:
