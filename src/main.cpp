@@ -30,7 +30,6 @@ Adafruit_INA219 ina219;
 // Instanciar objetos globalmente
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, U8X8_PIN_NONE, 20, 21);
 ESP32Encoder encoder;
-InjectorController inyector(9, 0, 12);
 
 // Variables globales de estado (puedes inicializarlas aquí)
 Estado estadoActual = MENU_PRINCIPAL;

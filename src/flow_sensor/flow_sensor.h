@@ -2,7 +2,7 @@
 #define FLOW_SENSOR_H
 
 #include <Arduino.h>
-
+unsigned long calculateSensorVolume();
 void setupvalues();
 class FlowSensor {
 public:
@@ -30,6 +30,8 @@ public:
 
     // Indica si se detecta una fuga (basado en el umbral configurado).
     bool isLeakDetected();
+
+
 
 private:
     uint8_t _pin;

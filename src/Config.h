@@ -27,7 +27,7 @@ const int botonPin = 40;
 #define BUZZER_PIN 19
 // Pine de relay bomba
 #define BOMBA_PIN 17
-extern bool bombaActiva; // Variable para rastrear el estado
+// extern bool bombaActiva; // Variable para rastrear el estado
 //pin relay inyector
 #define PIN_RELAY_INYECTOR_ALIM 13
 #define INYECTOR_PIN 12

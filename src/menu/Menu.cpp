@@ -27,7 +27,7 @@ static const int tamaniosubMenuFuncionamiento = sizeof(submenuFuncionamientoImag
 
 static const char *submenuManualImagenes[] = {
     "prueba_medir_resistencia", "prueba_fugas", "prueba_medir_clic", "prueba_corriente_activacion",
-    "prueba_tiempo_respuesta", "prueba_flujo", "prueba_temperatura","resultados","atrasitoo"};
+    "prueba_tiempo_respuesta", "prueba_flujo", "prueba_temperatura", "resultados", "atrasitoo"};
 static const int tamanioSubMenuManual = sizeof(submenuManualImagenes) / sizeof(submenuManualImagenes[0]);
 
 static const char *agregarBorrarImagenes[] = {"AGREGAR_INJ", "BORRAR_INJ", "ATRASAGREGARINYECTOR_INJ"};
@@ -48,7 +48,7 @@ void mostrarMenu()
     }
     break;
   case MENU_SELECCION_INYECTOR:
-    //beep();
+    // beep();
     handleTestInjector();
     break;
   case SELECCIONAR_RPM_TIME:
@@ -93,7 +93,7 @@ void mostrarMenu()
     handleDeleteData();
     break;
   case SUBMENU_MID_RES:
-  beep();
+    beep();
     InjectorData selected;
     //  runTestsAutomatic( selected);
     TestResult result;
@@ -106,53 +106,59 @@ void mostrarMenu()
 
     break;
   case SUBMENU_FUGAS:
-  // Test de Fugas
-  char outputt[50];
-  result = runTestFugas(selected);
-  sprintf(outputt, "Fugas: %.2f %s", result.measuredValue, result.passed ? "OK" : "FALLA");
-  u8g2.clearBuffer();
-  u8g2.drawStr(0, 12, outputt);
-  u8g2.sendBuffer();
-  delay(5000);
+    // Test de Fugas
+    char outputt[50];
+    result = runTestFugas(selected);
+    sprintf(outputt, "Fugas: %.2f %s", result.measuredValue, result.passed ? "OK" : "FALLA");
+    u8g2.clearBuffer();
+    u8g2.drawStr(0, 12, outputt);
+    u8g2.sendBuffer();
+    delay(5000);
 
-estadoActual=SUBMENU_MANUAL;
+    estadoActual = SUBMENU_MANUAL;
 
     break;
   case SUBMENU_CLICK:
-  char output[50];
-    u8g2.clearBuffer();
-    Serial.println("SUBMENU CLICK");
+
+
+    inyector.activarInyectorDesdeEncoder();
+    while (!(inyector.isActive && (millis() - inyector.startTime >= inyector.testDurationMs)))
+    {
+      char output[50];
+      u8g2.clearBuffer();
+      Serial.println("SUBMENU CLICK");
+      // pruebaClic();
+
+      result = runTestSonido(selected);
+      sprintf(output, "Sonido: %.2f %s", result.measuredValue, result.passed ? "OK" : "FALLA");
+      u8g2.clearBuffer();
+      u8g2.drawStr(0, 12, output);
+      u8g2.sendBuffer();
+    }
     
-    // pruebaClic();
-    // inyector.activarInyectorDesdeEncoder();
-    result = runTestSonido(selected);
-    sprintf(output, "Sonido: %.2f %s", result.measuredValue, result.passed ? "OK" : "FALLA");
-    u8g2.clearBuffer();
-    u8g2.drawStr(0, 12, output);
-    u8g2.sendBuffer();
-    delay(1000);
-    estadoActual=SUBMENU_MANUAL;
+
+    estadoActual = SUBMENU_MANUAL;
     break;
   case SUBMENU_CORRIENTE_ACTIVACION:
- 
-  
+
     break;
   case SUBMENU_TIEMPO_RESPUESTA:
 
     break;
   case SUBMENU_FLUJO:
-  setupvalues();
+    setupvalues();
+    estadoActual = SUBMENU_MANUAL;
     break;
   case SUBMENU_TEMPERATURA:
-  char outputtt[50];
-  result = runTestTemperatura(selected);
-  sprintf(outputtt, "Temperatura: %.2f %s", result.measuredValue, result.passed ? "OK" : "FALLA");
-  u8g2.clearBuffer();
-  u8g2.drawStr(0, 12, outputtt);
-  u8g2.sendBuffer();
-  delay(2000);
- 
-  estadoActual=SUBMENU_MANUAL;
+    char outputtt[50];
+    result = runTestTemperatura(selected);
+    sprintf(outputtt, "Temperatura: %.2f %s", result.measuredValue, result.passed ? "OK" : "FALLA");
+    u8g2.clearBuffer();
+    u8g2.drawStr(0, 12, outputtt);
+    u8g2.sendBuffer();
+    delay(2000);
+
+    estadoActual = SUBMENU_MANUAL;
 
     break;
   case SUBMENU_RESULTADOS:
@@ -164,11 +170,11 @@ estadoActual=SUBMENU_MANUAL;
 
   case AYUDA:
     //  // Prueba 3: 2 Hz, 1000 µs (umbral crítico)
-      inyector.activate(50.0, 2000, 10);
-      // delay(10000);
- // delay(10000);
-  // Detener manualmente:
-  // inyector.stop();
+
+    // delay(10000);
+    // delay(10000);
+    // Detener manualmente:
+    // inyector.stop();
     break;
   default:
     break;

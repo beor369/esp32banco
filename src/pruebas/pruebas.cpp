@@ -1,6 +1,7 @@
 #include "pruebas.h"
 #include <Arduino.h>
 #include "saveInjector/saveInjector.h"
+#include "GlobalVarials/GlobalVarials.h"
 #include "Menu/Menu.h"
 #include "config.h"
 #include "selectrpm/selectrpm.h"
@@ -72,7 +73,7 @@ TestResult testSonido(float threshold)
 {
   TestResult result;
   // Simula lectura de ADC del micrófono
-  inyector.activate(50.0, 2500, 5);
+  //inyector.activate(50.0, 2500, 5);
   int adcVal = analogRead(PIN_SONIDO); // Lee el valor ADC del sensor
   result.measuredValue = adcVal;
   result.passed = (adcVal >= threshold);
@@ -155,7 +156,6 @@ TestResult monitorTemperatura(float maxTemp)
 
 TestResult runTestResistencia(InjectorData selected)
 {
-
   return testResistencia(selected.resistencia, 0.10); // ±10%
 }
 
@@ -193,69 +193,39 @@ TestResult runTestTemperatura(InjectorData selected)
   return monitorTemperatura(80.0); // Umbral fijo de 80°C
 }
 
-// Modo Automático: se ejecutan todas las pruebas en secuencia.
-void runTestsAutomatic(InjectorData selected)
-{
-  TestResult result;
-  char output[50]; // Buffer para almacenar el texto a mostrar
-
-  // Test de Resistencia
-  result = runTestResistencia(selected);
-  sprintf(output, "Resistencia: %.2f %s", result.measuredValue, result.passed ? "OK" : "FALLA");
-  u8g2.clearBuffer();
-  u8g2.drawStr(0, 12, output);
-  u8g2.sendBuffer();
-  delay(1000);
-
-  // Test de Fugas
-  result = runTestFugas(selected);
-  sprintf(output, "Fugas: %.2f %s", result.measuredValue, result.passed ? "OK" : "FALLA");
-  u8g2.clearBuffer();
-  u8g2.drawStr(0, 12, output);
-  u8g2.sendBuffer();
-  delay(1000);
-
-  // Test de Sonido
-  result = runTestSonido(selected);
-  sprintf(output, "Sonido: %.2f %s", result.measuredValue, result.passed ? "OK" : "FALLA");
-  u8g2.clearBuffer();
-  u8g2.drawStr(0, 12, output);
-  u8g2.sendBuffer();
-  delay(1000);
-
-  // Test de Corriente
-  result = runTestCorriente(selected);
-  sprintf(output, "Corriente: %.2f %s", result.measuredValue, result.passed ? "OK" : "FALLA");
-  u8g2.clearBuffer();
-  u8g2.drawStr(0, 12, output);
-  u8g2.sendBuffer();
-  delay(1000);
-
-  // Test de Tiempo de Respuesta
-  result = runTestTiempoRespuesta(selected);
-  sprintf(output, "Tiempo Resp.: %.2f %s", result.measuredValue, result.passed ? "OK" : "FALLA");
-  u8g2.clearBuffer();
-  u8g2.drawStr(0, 12, output);
-  u8g2.sendBuffer();
-  delay(1000);
-
-  // Test de Caudal
-  result = runTestCaudal(selected);
-  sprintf(output, "Caudal: %.2f %s", result.measuredValue, result.passed ? "OK" : "FALLA");
-  u8g2.clearBuffer();
-  u8g2.drawStr(0, 12, output);
-  u8g2.sendBuffer();
-  delay(1000);
-
-  // Test de Temperatura
-  result = runTestTemperatura(selected);
-  sprintf(output, "Temperatura: %.2f %s", result.measuredValue, result.passed ? "OK" : "FALLA");
-  u8g2.clearBuffer();
-  u8g2.drawStr(0, 12, output);
-  u8g2.sendBuffer();
-  delay(1000);
+void activarBuzzer() {
+  // Código para activar el buzzer
+  // tone(8, 1000, 500); // Ejemplo: Sonido en pin 8, 1000 Hz por 500ms
 }
-// Función para activar el buzzer
+// Modo Automático: se ejecutan todas las pruebas en secuencia.
+void mostrarResultado(const char* nombre, TestResult result) {
+  char output[50];
+  snprintf(output, sizeof(output), "%s: %.2f %s", nombre, result.measuredValue, result.passed ? "OK" : "FALLA");
+
+  u8g2.clearBuffer();
+  u8g2.drawStr(0, 12, output);
+  u8g2.sendBuffer();
+  delay(1000);
+
+  if (!result.passed) {
+    activarBuzzer(); // Llamada a la función del buzzer en caso de falla
+  }
+}
+
+void runTestsAutomatic(InjectorData selected) {
+  resultadosTests["Resistencia"] = runTestResistencia(selected);
+  resultadosTests["Fugas"] = runTestFugas(selected); //NO BOMBA
+  resultadosTests["Sonido"] = runTestSonido(selected);// NO BOMBA
+  resultadosTests["Corriente"] = runTestCorriente(selected);
+  resultadosTests["Tiempo Resp."] = runTestTiempoRespuesta(selected);
+  resultadosTests["Caudal"] = runTestCaudal(selected);
+  resultadosTests["Temperatura"] = runTestTemperatura(selected);
+
+  for (const auto& test : resultadosTests) {
+    mostrarResultado(test.first.c_str(), test.second);
+  }
+}
+
 
 void beep() {
   if (!buzzerActive) {

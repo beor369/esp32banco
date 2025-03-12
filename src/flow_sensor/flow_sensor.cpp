@@ -4,7 +4,12 @@
 #include "config.h"
 #include "InjectorController/InjectorController.h"
 #include "menu/Menu.h"
+
 // Inicialización del puntero estático para la instancia.
+//FlowSensor sensor(4);
+
+
+
 FlowSensor* FlowSensor::_instance = nullptr;
 
 FlowSensor::FlowSensor(uint8_t pin, float calibrationFactor, 
@@ -66,21 +71,68 @@ bool FlowSensor::isLeakDetected() {
 // testTimeSec: tiempo de prueba en segundos
 // pulseWidthUs: ancho de pulso en microsegundos
 // K: constante (ml/µs) que indica el volumen inyectado por µs de activación
-float calculateExpectedVolume(float RPM, float injPerRev, float testTimeSec, float pulseWidthUs, float K) {
-    // Frecuencia de inyección (inyecciones por segundo)
-    float frequency = (RPM / 60.0) * injPerRev;
-    // Volumen por inyección en ml (suponiendo relación lineal)
-    float volumePerInjection = K * pulseWidthUs;
-    // Volumen total esperado = (inyecciones/seg) * tiempo * volumen por inyección
-    float expectedVolume = frequency * testTimeSec * volumePerInjection;
-    return expectedVolume;
+
+// unsigned long calculateExpectedVolume(unsigned long RPM, unsigned long injPerRev, unsigned long testTimeSec, unsigned long pulseWidthUs, unsigned long K) {
+//     // Frecuencia de inyección (inyecciones por segundo)
+//     unsigned long frequency = (RPM / 60.0) * injPerRev;
+// unsigned long    unsigned long volumePerInjection = K * pulseWidthUs;
+//     // Volumen total esperado = (inyecciones/seg) * tiempo * volumen por inyección
+//     unsigned long expectedVolume = frequency * testTimeSec * volumePerInjection;
+//     return expectedVolume;
+// }
+// frecuencia = rpmValue / 120.0f;          // RPM → Hz (4 tiempos)
+// anchoPulsoUs = pulseWidthValue * 1000; // ms → µs
+// tiempoPruebaSec = testTimeValue / 1000; // ms → segundos
+
+//  long calculateExpectedVolume(long frecuencia, unsigned long pulseWidthValue, unsigned long tiempoPruebaSec) {
+//    long injPerRev = 2.0;          // Número de inyecciones por revolución
+//   //  unsigned long testTimeSec = tiempoPruebaSec;        // Tiempo de prueba en segundos
+//   //  unsigned long pulseWidthUs = anchoPulsoUs;    // Ancho de pulso en microsegundos
+//  long K = 0.00001;            // Constante de calibración (ej.: 0.00001 ml/µs)
+
+
+//    Serial.println("//////////////////// values calculateExpectedVolume injector//////////");
+//    Serial.println(frecuencia);
+//    Serial.println(anchoPulsoUs);
+//    Serial.println(tiempoPruebaSec);
+//    Serial.println("//////////////////// values calculateExpectedVolume injector end//////////");
+
+  
+//   // Frecuencia de inyección (inyecciones por segundo)
+//    long frequency = (frecuencia / 60) * injPerRev;
+//    long volumePerInjection = K * pulseWidthValue;
+//   Serial.println("//////////////////// debud frecuence//////////");
+//   Serial.println(frequency);
+//   Serial.println(volumePerInjection);
+//   Serial.println("////////////////////debug frecuence//////////");
+
+//   // Volumen total esperado = (inyecciones/seg) * tiempo * volumen por inyección
+//    long expectedVolume = frequency * tiempoPruebaSec * volumePerInjection;
+//   return expectedVolume;
+// }
+double calculateExpectedVolume(long frecuencia, unsigned long pulseWidthValue, unsigned long tiempoPruebaSec) {
+  double injPerRev = 2.0;  // Número de inyecciones por revolución
+  double K = 0.00001;      // Constante de calibración en ml/µs
+
+  // Frecuencia de inyección (inyecciones por segundo)
+  double frequency = (frecuencia / 60.0) * injPerRev; // Asegurar división en punto flotante
+  double volumePerInjection = K * pulseWidthValue;
+
+
+
+  // Volumen total esperado = (inyecciones/seg) * tiempo * volumen por inyección
+  double expectedVolume = frequency * tiempoPruebaSec * volumePerInjection;
+
+  return expectedVolume;
 }
 
 // Convierte el caudal (L/min) obtenido por el sensor a volumen (ml) durante el tiempo de prueba
-float calculateSensorVolume(float flowRateLmin, float testTimeSec) {
+unsigned long calculateSensorVolume() {
+  float sensorFlowRateLmin = sensor.getFilteredFlow();
     // 1 L = 1000 ml, 1 min = 60 s
-    float flowRate_ml_per_sec = (flowRateLmin * 1000.0) / 60.0;
-    return flowRate_ml_per_sec * testTimeSec;
+    float flowRate_ml_per_sec = (sensorFlowRateLmin * 1000.0) / 60.0;
+   
+    return flowRate_ml_per_sec * tiempoPruebaSec ;
 }
 
 // Compara el volumen esperado con el volumen medido por el sensor
@@ -98,24 +150,30 @@ void setupvalues() {
     // extern unsigned long anchoPulsoUs;
     // extern unsigned long tiempoPruebaSec;  
     // Parámetros de ejemplo (puedes editar estos valores según tu prueba)
-    // float RPM = frecuencia;           // RPM del motor
-    // float injPerRev = 2.0;          // Número de inyecciones por revolución
-    // float testTimeSec = tiempoPruebaSec;        // Tiempo de prueba en segundos
-    // float pulseWidthUs = anchoPulsoUs;    // Ancho de pulso en microsegundos
-    // float K = 0.00001;            // Constante de calibración (ej.: 0.00001 ml/µs)
+    //  unsigned long RPM = frecuencia;           // RPM del motor
+    //  unsigned long injPerRev = 2.0;          // Número de inyecciones por revolución
+    // //  unsigned long testTimeSec = tiempoPruebaSec;        // Tiempo de prueba en segundos
+    // //  unsigned long pulseWidthUs = anchoPulsoUs;    // Ancho de pulso en microsegundos
+    //  unsigned long K = 0.00001;            // Constante de calibración (ej.: 0.00001 ml/µs)
     
-    float RPM = 3000.0;           // RPM del motor
-    float injPerRev = 2.0;          // Número de inyecciones por revolución
-    float testTimeSec = 5.0;        // Tiempo de prueba en segundos
-    float pulseWidthUs = 1000.0;    // Ancho de pulso en microsegundos
-    float K = 0.00001;            // Constante de calibración (ej.: 0.00001 ml/µs)
+    // unsigned long RPM = 3000.0;           // RPM del motor
+    // unsigned long injPerRev = 2.0;          // Número de inyecciones por revolución
+    // unsigned long testTimeSec = 5.0;        // Tiempo de prueba en segundos
+    // unsigned long pulseWidthUs = 1000.0;    // Ancho de pulso en microsegundos
+    // unsigned long K = 0.00001;            // Constante de calibración (ej.: 0.00001 ml/µs)
     
     // Volumen esperado calculado según la fórmula
-    float expectedVolume = calculateExpectedVolume(RPM, injPerRev, testTimeSec, pulseWidthUs, K);
-    
+    // unsigned long expectedVolume = calculateExpectedVolume(RPM, injPerRev, testTimeSec, pulseWidthUs, K);
+
+    InyectorParametros values = inyector.activarInyectorDesdeEncoder();
+
+
+
+    double expectedVolume = calculateExpectedVolume(values.frecuencia, values.anchoPulsoUs, values.tiempoPruebaSec); 
     // Supongamos que el sensor mide un caudal de 2.5 L/min
-    float sensorFlowRateLmin = 2.5;
-    float sensorVolume = calculateSensorVolume(sensorFlowRateLmin, testTimeSec);
+    
+
+    unsigned long sensorVolume = calculateSensorVolume();
 
     Serial.print("Volumen esperado: ");
     Serial.print(expectedVolume, 4);
@@ -126,10 +184,12 @@ void setupvalues() {
     Serial.println(" ml");
 
     // Definimos una tolerancia, por ejemplo, 10%
-    float tolerancePercent = 10.0;
+    unsigned long tolerancePercent = 10.0;
     if (compareVolumes(expectedVolume, sensorVolume, tolerancePercent)) {
         Serial.println("El volumen medido está dentro del rango de tolerancia.");
     } else {
         Serial.println("El volumen medido no coincide con el esperado.");
     }
+
+    //estadoActual = SUBMENU_MANUAL;
 }

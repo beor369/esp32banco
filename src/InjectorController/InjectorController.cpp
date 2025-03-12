@@ -3,56 +3,80 @@
 #include "menu/Menu.h"
 #include "selectrpm/selectrpm.h"
 #include <math.h>
+long frecuencia;
+unsigned long anchoPulsoUs;
+unsigned long tiempoPruebaSec;
 
 
+InjectorController inyector(9, 0, 12);
 
-void InjectorController::activarInyectorDesdeEncoder() {
+InyectorParametros InjectorController::activarInyectorDesdeEncoder()
+{
   // Convertir a parámetros técnicos (asegurar unidades correctas)
   // float frecuencia = rpmValue / 120.0f;          // RPM → Hz (4 tiempos)
   // unsigned long anchoPulsoUs = pulseWidthValue * 1000; // ms → µs
   // unsigned long tiempoPruebaSec = testTimeValue / 1000; // ms → segundos
-  frecuencia = rpmValue / 120.0f;          // RPM → Hz (4 tiempos)
-  anchoPulsoUs = pulseWidthValue * 1000; // ms → µs
+  frecuencia = rpmValue / 120.0f;         // RPM → Hz (4 tiempos)
+  anchoPulsoUs = pulseWidthValue * 1000;  // ms → µs
   tiempoPruebaSec = testTimeValue / 1000; // ms → segundos
- 
-  inyector.activate(frecuencia, anchoPulsoUs, tiempoPruebaSec);
-}
-InjectorController::InjectorController(uint8_t pin, uint8_t channel, uint8_t resolution) 
-  : pin(pin), channel(channel), resolution(resolution), isActive(false) {}
 
-void InjectorController::begin() {
+  inyector.activate(frecuencia, anchoPulsoUs, tiempoPruebaSec);
+
+  return {frecuencia, anchoPulsoUs, tiempoPruebaSec};
+}
+
+InjectorController::InjectorController(uint8_t pin, uint8_t channel, uint8_t resolution)
+    : pin(pin), channel(channel), resolution(resolution), isActive(false) {}
+
+void InjectorController::begin()
+{
   ledcSetup(channel, 1, resolution);
   ledcAttachPin(pin, channel);
 }
 
-void InjectorController::calculateDutyCycle() {
+void InjectorController::calculateDutyCycle()
+{
   uint64_t periodUs = 1000000 / frequency;
-  if (pulseWidthUs > periodUs) {
+
+  if (pulseWidthUs > periodUs)
+  {
     Serial.println("Error: Pulse width > Period");
     stop();
     return;
   }
-  
+
   uint32_t duty = (pulseWidthUs * frequency * (1ULL << resolution)) / 1000000ULL;
   duty = min(duty, (uint32_t)((1ULL << resolution) - 1)); // ¡Corrección aquí!
   ledcWrite(channel, duty);
 }
 
-void InjectorController::activate(float freq, unsigned long pulseWidthUs, unsigned long testDurationSec) {
+void InjectorController::activate(float freq, unsigned long pulseWidthUs, unsigned long testDurationSec)
+{
   frequency = freq;
   this->pulseWidthUs = pulseWidthUs;
   testDurationMs = testDurationSec * 1000;
-  
+
+
   ledcSetup(channel, frequency, resolution);
+
   calculateDutyCycle();
-  
+
   isActive = true;
   startTime = millis();
-  
-  Serial.printf("Inyector ACTIVADO - F: %.1fHz, PW: %luµs, T: %lus\n", 
-               frequency, pulseWidthUs, testDurationSec);
+
+  Serial.printf("Inyector ACTIVADO - F: %.1fHz, PW: %luµs, T: %lus\n",
+                frequency, pulseWidthUs, testDurationSec);
 }
 
+void InjectorController::stop_bomba()
+{
+  digitalWrite(BOMBA_PIN, HIGH);
+}
+
+void InjectorController::begin_bomba()
+{
+  digitalWrite(BOMBA_PIN, HIGH);
+}
 
 // void InjectorController::activate(float freq, unsigned long pulseWidthUs, unsigned long testDurationSec) {
 //   // Calcular la resolución mínima necesaria para que el divisor no supere el límite
@@ -79,19 +103,22 @@ void InjectorController::activate(float freq, unsigned long pulseWidthUs, unsign
 //   Serial.printf("Resolución: %u bits | Duty: %u\n", min_resolution, duty);
 // }
 
-
-void InjectorController::update() {
-  if (isActive && (millis() - startTime >= testDurationMs)) {
+void InjectorController::update()
+{
+  if (isActive && (millis() - startTime >= testDurationMs))
+  {
     stop();
   }
 }
 
-void InjectorController::stop() {
+void InjectorController::stop()
+{
   ledcWrite(channel, 0);
   isActive = false;
   Serial.println("Inyector DESACTIVADO");
 }
 
-bool InjectorController::isInjectorActive() const {
+bool InjectorController::isInjectorActive() const
+{
   return isActive;
 }

@@ -1,5 +1,7 @@
 #ifndef PRUEBAS_H
 #define PRUEBAS_H
+#include <map>
+#include <string>
 
 #include <Arduino.h>
 #include "saveInjector/saveInjector.h"
@@ -47,4 +49,6 @@ void runTestsAutomatic(InjectorData selected);
 void setupbit();
 void updateBuzzer();
 void beep();
+
+extern std::map<std::string, TestResult> resultadosTests;
 #endif  // PRUEBAS_H

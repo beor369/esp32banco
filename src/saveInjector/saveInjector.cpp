@@ -385,14 +385,13 @@ void handleTestInjector()
   }
   int sel = selectMenuOption("Seleccione inyector", opts, totalInyectores);
   InjectorData selected;
-  GlobalInjector global;
 
   if (sel < NUM_DEFAULT_INJECTORES) {
       selected = defaultInyectores[sel];
-      global.setInjector(selected);
+      globalInjector.setInjector(selected);
   } else {
     selected = inyectores[sel - NUM_DEFAULT_INJECTORES];
-    global.setInjector(selected);
+    globalInjector.setInjector(selected);
   }
 
   estadoActual = SELECCIONAR_RPM_TIME;

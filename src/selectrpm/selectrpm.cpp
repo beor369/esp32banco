@@ -12,14 +12,11 @@
 //  ============================
 //  ESP32Encoder encoder;
 
-
-
-
 State currentState = SELECT_RPM;
 
 long rpmValue = 1200;       // Base 1000 RPM
-long pulseWidthValue = 2;  // Base 10 ms
-long  testTimeValue = 50000; // Base 10,000 ms (10 s)
+long pulseWidthValue = 2;   // Base 10 ms
+long testTimeValue = 50000; // Base 10,000 ms (10 s)
 
 // Variables para debounce del botón
 unsigned long lastButtonPress = 0;
@@ -78,67 +75,9 @@ void displayMenu()
 // ============================
 // Función para Activar el Inyector
 // ============================
-void activarInyector(unsigned long tiempoOn, unsigned long tiempoOff = 0)
-{
- 
 
-digitalWrite(INYECTOR_PIN, HIGH);
-delay(tiempoOn);
-digitalWrite(INYECTOR_PIN, LOW);
-  if (tiempoOff > 0)
-  {
-    delay(tiempoOff);
-  }
-}
 
 // ============================
-void simularRPM(unsigned int rpm, unsigned long testDuration, unsigned long pulseTime) {
-  // Calcula el período (ms) para cada pulso según las RPM
-     // Cuenta regresiva mostrada en la pantalla
-     unsigned long tiempoSeg = testTimeValue / 1000; // Conversión a segundos
-
-  // for (unsigned long i = tiempoSeg; i > 0; i--) {
-    // Muestra la configuración inicial de la prueba
-      // Ejecuta la prueba según los parámetros seleccionados
-
-u8g2.clearBuffer();
-
-u8g2.setFont(u8g2_font_ncenB08_tr);
-u8g2.drawStr(0, 10, "Iniciando prueba");
-char buf[32];
-sprintf(buf, "RPM: %ld", rpmValue);
-u8g2.drawStr(0, 25, buf);
-sprintf(buf, "Pulso: %ld ms", pulseWidthValue);
-u8g2.drawStr(0, 40, buf);
-  // sprintf(buf, "Tiempo: %lus", i);
-  sprintf(buf, "Tiempo: %ld s", testTimeValue / 1000);
-  u8g2.drawStr(0, 55, buf);
-  u8g2.sendBuffer();
-  // delay(1000);
-  digitalWrite(BOMBA_PIN, LOW);
-delay(2000);
- 
-// }
-  unsigned long periodo = 60000UL / rpm;
-  if (pulseTime >= periodo) {
-    pulseTime = periodo / 2;
-  }
-  
-  unsigned long startTime = millis();
-  unsigned long endTime = startTime + testDuration;
-  
-  while (millis() < endTime) {
-    // Activa el inyector durante el ancho de pulso definido
-    activarInyector(pulseTime);
-    
-    // Espera el resto del período para mantener la frecuencia según RPM
-    unsigned long espera = periodo - pulseTime;
-    if (espera > 0) {
-      delay(espera);
-    }
-  }
-  digitalWrite(BOMBA_PIN, HIGH);
-}
 
 // ============================
 // setup() y loop()
@@ -147,8 +86,8 @@ void setupselectrpm()
 {
   pinMode(INYECTOR_PIN, OUTPUT);
   pinMode(BOMBA_PIN, OUTPUT);
- digitalWrite(INYECTOR_PIN,LOW);
- digitalWrite(BOMBA_PIN,HIGH);
+  digitalWrite(INYECTOR_PIN, LOW);
+  digitalWrite(BOMBA_PIN, HIGH);
 
   // displayMenu();
 }
@@ -201,7 +140,6 @@ void actualizarIndic(bool incremento)
         testTimeValue = 10000; // Límite inferior
     }
   }
-
 }
 
 void displayEncoderPositionRPM()
@@ -243,7 +181,7 @@ void checkEncoderButton()
         encoder.clearCount();
         break;
       case SELECT_TIME:
-        estadoActual=SELECCIONAR_MOTO;
+        estadoActual = SELECCIONAR_MOTO;
         break;
       default:
         break;
