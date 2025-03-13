@@ -110,18 +110,18 @@ bool FlowSensor::isLeakDetected() {
 //    long expectedVolume = frequency * tiempoPruebaSec * volumePerInjection;
 //   return expectedVolume;
 // }
-double calculateExpectedVolume(long frecuencia, unsigned long pulseWidthValue, unsigned long tiempoPruebaSec) {
+double calculateExpectedVolume(long frecuenciaa, unsigned long anchoPulsoUss, unsigned long tiempoPruebaSecc) {
   double injPerRev = 2.0;  // Número de inyecciones por revolución
   double K = 0.00001;      // Constante de calibración en ml/µs
 
   // Frecuencia de inyección (inyecciones por segundo)
-  double frequency = (frecuencia / 60.0) * injPerRev; // Asegurar división en punto flotante
-  double volumePerInjection = K * pulseWidthValue;
+  double frequency = (frecuenciaa / 60.0) * injPerRev; // Asegurar división en punto flotante
+  double volumePerInjection = K * anchoPulsoUss;
 
 
 
   // Volumen total esperado = (inyecciones/seg) * tiempo * volumen por inyección
-  double expectedVolume = frequency * tiempoPruebaSec * volumePerInjection;
+  double expectedVolume = frequency * tiempoPruebaSecc * volumePerInjection;
 
   return expectedVolume;
 }
@@ -165,11 +165,11 @@ void setupvalues() {
     // Volumen esperado calculado según la fórmula
     // unsigned long expectedVolume = calculateExpectedVolume(RPM, injPerRev, testTimeSec, pulseWidthUs, K);
 
-    InyectorParametros values = inyector.activarInyectorDesdeEncoder();
+    InyectorParametros values = inyector.devolver();
 
 
 
-    double expectedVolume = calculateExpectedVolume(values.frecuencia, values.anchoPulsoUs, values.tiempoPruebaSec); 
+    double expectedVolume = calculateExpectedVolume(values.frecuenciaa, values.anchoPulsoUss, values.tiempoPruebaSecc); 
     // Supongamos que el sensor mide un caudal de 2.5 L/min
     
 

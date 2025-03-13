@@ -36,6 +36,40 @@ static const int tamanioagregarborrarinj = sizeof(agregarBorrarImagenes) / sizeo
 static const char *seleccionarMotoImagenes[] = {"SIGUIENTEFUNCIONAMIENTO", "VER_CARACT", "ATRASMENU"};
 static const int tamanioseleccionarmoto = sizeof(seleccionarMotoImagenes) / sizeof(seleccionarMotoImagenes[0]);
 
+void controlBombaDurantePrueba(unsigned long tiempoBombaEncendidaS, unsigned long tiempoBombaApagadaS)
+{
+  unsigned long tiempoBombaEncendidaMs = tiempoBombaEncendidaS * 1000;
+  unsigned long tiempoBombaApagadaMs = tiempoBombaApagadaS * 1000;
+
+  unsigned long inicioCiclo = millis();
+  bool bombaEncendida = true;
+
+  digitalWrite(BOMBA_PIN, LOW); // Enciende la bomba
+  inyector.activarInyectorDesdeEncoder();
+
+  while (!(inyector.isActive && (millis() - inyector.startTime >= inyector.testDurationMs)))
+  {
+    unsigned long tiempoCiclo = millis() - inicioCiclo;
+
+    if (bombaEncendida && (tiempoCiclo >= tiempoBombaEncendidaMs))
+    {
+      digitalWrite(BOMBA_PIN, HIGH);
+      bombaEncendida = false;
+      inicioCiclo = millis();
+    }
+    else if (!bombaEncendida && (tiempoCiclo >= tiempoBombaApagadaMs))
+    {
+      digitalWrite(BOMBA_PIN, LOW);
+      bombaEncendida = true;
+      inicioCiclo = millis();
+    }
+
+    setupvalues();
+  }
+
+  digitalWrite(BOMBA_PIN, HIGH);
+}
+
 // Muestra el menú según el estado actual
 void mostrarMenu()
 {
@@ -120,8 +154,8 @@ void mostrarMenu()
     break;
   case SUBMENU_CLICK:
 
+    inyector.activate(50.0, 2500, 5);
 
-    inyector.activarInyectorDesdeEncoder();
     while (!(inyector.isActive && (millis() - inyector.startTime >= inyector.testDurationMs)))
     {
       char output[50];
@@ -135,7 +169,6 @@ void mostrarMenu()
       u8g2.drawStr(0, 12, output);
       u8g2.sendBuffer();
     }
-    
 
     estadoActual = SUBMENU_MANUAL;
     break;
@@ -146,7 +179,16 @@ void mostrarMenu()
 
     break;
   case SUBMENU_FLUJO:
-    setupvalues();
+    controlBombaDurantePrueba(3, 10);
+    // digitalWrite(BOMBA_PIN, LOW);
+    // inyector.activarInyectorDesdeEncoder();
+
+    // while (!(inyector.isActive && (millis() - inyector.startTime >= inyector.testDurationMs)))
+    // {
+    //   setupvalues();
+    // }
+
+    // digitalWrite(BOMBA_PIN, HIGH);
     estadoActual = SUBMENU_MANUAL;
     break;
   case SUBMENU_TEMPERATURA:
@@ -157,8 +199,6 @@ void mostrarMenu()
     u8g2.drawStr(0, 12, outputtt);
     u8g2.sendBuffer();
     delay(2000);
-
-    estadoActual = SUBMENU_MANUAL;
 
     break;
   case SUBMENU_RESULTADOS:

@@ -10,6 +10,9 @@ struct InyectorParametros {
   long frecuencia;
   unsigned long anchoPulsoUs;
   unsigned long tiempoPruebaSec;
+   long frecuenciaa;
+ unsigned long anchoPulsoUss;
+ unsigned long tiempoPruebaSecc;
 };
 
 class InjectorController {
@@ -27,6 +30,7 @@ class InjectorController {
   public:
     InjectorController(uint8_t pin, uint8_t channel, uint8_t resolution = 12);
     InyectorParametros activarInyectorDesdeEncoder();
+    InyectorParametros devolver();
     void begin();
     void activate(float freq, unsigned long pulseWidthUs, unsigned long testDurationSec);
     // void activateFromRPM(unsigned int rpm, float percentage, unsigned long testDurationSec); // Nueva función
@@ -40,4 +44,7 @@ extern InjectorController inyector; // Declaración externa
 extern long frecuencia;
 extern unsigned long anchoPulsoUs;
 extern unsigned long tiempoPruebaSec;
+extern long frecuenciaa;
+extern unsigned long anchoPulsoUss;
+extern unsigned long tiempoPruebaSecc;
 #endif

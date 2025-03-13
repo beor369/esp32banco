@@ -7,6 +7,9 @@ long frecuencia;
 unsigned long anchoPulsoUs;
 unsigned long tiempoPruebaSec;
 
+long frecuenciaa;
+unsigned long anchoPulsoUss;
+unsigned long tiempoPruebaSecc;
 
 InjectorController inyector(9, 0, 12);
 
@@ -24,7 +27,20 @@ InyectorParametros InjectorController::activarInyectorDesdeEncoder()
 
   return {frecuencia, anchoPulsoUs, tiempoPruebaSec};
 }
+InyectorParametros InjectorController::devolver()
+{
+  // Convertir a parámetros técnicos (asegurar unidades correctas)
+  // float frecuencia = rpmValue / 120.0f;          // RPM → Hz (4 tiempos)
+  // unsigned long anchoPulsoUs = pulseWidthValue * 1000; // ms → µs
+  // unsigned long tiempoPruebaSec = testTimeValue / 1000; // ms → segundos
+  frecuenciaa = frecuencia ;     // RPM → Hz (4 tiempos)
+  anchoPulsoUss =anchoPulsoUs;  // ms → µs
+  tiempoPruebaSecc = tiempoPruebaSec; // ms → segundos
 
+  
+
+  return {frecuenciaa, anchoPulsoUss, tiempoPruebaSecc};
+}
 InjectorController::InjectorController(uint8_t pin, uint8_t channel, uint8_t resolution)
     : pin(pin), channel(channel), resolution(resolution), isActive(false) {}
 
