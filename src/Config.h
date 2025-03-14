@@ -7,6 +7,8 @@
 #include <EEPROM.h>
 #include "pruebas/activatebankofproof/activatebankofproof.h"
 #include "InjectorController/InjectorController.h"
+#include <Wire.h>
+#include <Adafruit_INA219.h>
 
 #include "pruebas/pruebas.h"
 
@@ -110,6 +112,9 @@ extern int indiceagregarborrarinjt;
 // Instancias globales que pueden usarse en varios módulos
 extern U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2;
 extern ESP32Encoder encoder;
+
+extern TwoWire ina219Wire;
+extern Adafruit_INA219 ina219;
 
 // Parámetros de tiempo para el encoder
 const unsigned long encoderMoveDelay = 200;

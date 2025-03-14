@@ -22,15 +22,17 @@ void displayEncoderPosition() {
     if (valorEncoder > 0) {
       actualizarIndice(true);  // Función definida en Menu.cpp
       encoder.clearCount();
+      mostrarMenu();
       lastEncoderMoveTime = millis();
     } else if (valorEncoder < 0) {
  
       actualizarIndice(false);
       encoder.clearCount();
+      mostrarMenu();
       lastEncoderMoveTime = millis();
     }
 
-    mostrarMenu();
+
 
     if (digitalRead(botonPin) == LOW) {
       delay(50);  // Debounce

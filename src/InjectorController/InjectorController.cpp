@@ -11,7 +11,7 @@ long frecuenciaa;
 unsigned long anchoPulsoUss;
 unsigned long tiempoPruebaSecc;
 
-InjectorController inyector(9, 0, 12);
+InjectorController inyector(INYECTOR_PIN, 0, 12);
 
 InyectorParametros InjectorController::activarInyectorDesdeEncoder()
 {
@@ -50,6 +50,21 @@ void InjectorController::begin()
   ledcAttachPin(pin, channel);
 }
 
+void InjectorController::assess_ina()
+{
+  float shuntVoltage = ina219.getShuntVoltage_mV();
+  float busVoltage   = ina219.getBusVoltage_V();
+  float current      = ina219.getCurrent_mA();
+  float power        = ina219.getPower_mW();
+  
+  Serial.print("Bus Voltage:   "); Serial.print(busVoltage); Serial.println(" V");
+  Serial.print("Shunt Voltage: "); Serial.print(shuntVoltage); Serial.println(" mV");
+  Serial.print("Current:       "); Serial.print(current); Serial.println(" mA");
+  Serial.print("Power:         "); Serial.print(power); Serial.println(" mW");
+  Serial.println("");
+}
+
+
 void InjectorController::calculateDutyCycle()
 {
   uint64_t periodUs = 1000000 / frequency;
@@ -60,10 +75,11 @@ void InjectorController::calculateDutyCycle()
     stop();
     return;
   }
-
+  
   uint32_t duty = (pulseWidthUs * frequency * (1ULL << resolution)) / 1000000ULL;
   duty = min(duty, (uint32_t)((1ULL << resolution) - 1)); // ¡Corrección aquí!
   ledcWrite(channel, duty);
+
 }
 
 void InjectorController::activate(float freq, unsigned long pulseWidthUs, unsigned long testDurationSec)
@@ -123,6 +139,7 @@ void InjectorController::update()
 {
   if (isActive && (millis() - startTime >= testDurationMs))
   {
+    // inyector.assess_ina();
     stop();
   }
 }

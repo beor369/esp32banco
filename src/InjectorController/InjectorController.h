@@ -32,6 +32,7 @@ class InjectorController {
     InyectorParametros activarInyectorDesdeEncoder();
     InyectorParametros devolver();
     void begin();
+    void assess_ina();
     void activate(float freq, unsigned long pulseWidthUs, unsigned long testDurationSec);
     // void activateFromRPM(unsigned int rpm, float percentage, unsigned long testDurationSec); // Nueva función
     void update();

@@ -1,7 +1,9 @@
 #ifndef PRUEBAS_H
 #define PRUEBAS_H
+#include <optional>
 #include <map>
 #include <string>
+
 
 #include <Arduino.h>
 #include "saveInjector/saveInjector.h"
@@ -9,6 +11,7 @@
 
 // // Estructura para almacenar el resultado de una prueba
 struct TestResult {
+  std::optional<float> expectedValue;
   bool passed;          // true si la prueba se aprueba
   float measuredValue;  // Valor medido (resistencia, corriente, tiempo, etc.)
 };
@@ -49,6 +52,7 @@ void runTestsAutomatic(InjectorData selected);
 void setupbit();
 void updateBuzzer();
 void beep();
+void mostrarResultado(const char *nombre, TestResult result);
 
 extern std::map<std::string, TestResult> resultadosTests;
 #endif  // PRUEBAS_H

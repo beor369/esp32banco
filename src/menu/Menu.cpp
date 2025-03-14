@@ -36,11 +36,12 @@ static const int tamanioagregarborrarinj = sizeof(agregarBorrarImagenes) / sizeo
 static const char *seleccionarMotoImagenes[] = {"SIGUIENTEFUNCIONAMIENTO", "VER_CARACT", "ATRASMENU"};
 static const int tamanioseleccionarmoto = sizeof(seleccionarMotoImagenes) / sizeof(seleccionarMotoImagenes[0]);
 
-void controlBombaDurantePrueba(unsigned long tiempoBombaEncendidaS, unsigned long tiempoBombaApagadaS)
+typedef void (*Callback)();
+
+void controlBombaDurantePrueba(unsigned long tiempoBombaEncendidaS, unsigned long tiempoBombaApagadaS, Callback actualizaValores)
 {
   unsigned long tiempoBombaEncendidaMs = tiempoBombaEncendidaS * 1000;
   unsigned long tiempoBombaApagadaMs = tiempoBombaApagadaS * 1000;
-
   unsigned long inicioCiclo = millis();
   bool bombaEncendida = true;
 
@@ -49,6 +50,8 @@ void controlBombaDurantePrueba(unsigned long tiempoBombaEncendidaS, unsigned lon
 
   while (!(inyector.isActive && (millis() - inyector.startTime >= inyector.testDurationMs)))
   {
+
+    // inyector.assess_ina();
     unsigned long tiempoCiclo = millis() - inicioCiclo;
 
     if (bombaEncendida && (tiempoCiclo >= tiempoBombaEncendidaMs))
@@ -64,12 +67,11 @@ void controlBombaDurantePrueba(unsigned long tiempoBombaEncendidaS, unsigned lon
       inicioCiclo = millis();
     }
 
-    setupvalues();
+    actualizaValores();
   }
 
   digitalWrite(BOMBA_PIN, HIGH);
 }
-
 // Muestra el menú según el estado actual
 void mostrarMenu()
 {
@@ -128,22 +130,15 @@ void mostrarMenu()
     break;
   case SUBMENU_MID_RES:
     beep();
-    InjectorData selected;
-    //  runTestsAutomatic( selected);
-    TestResult result;
-
-    result = runTestResistencia(selected);
-    Serial.print("Resistencia: ");
-    Serial.print(result.measuredValue);
-    Serial.println(result.passed ? " OK" : " FALLA");
+      
     delay(1000);
 
     break;
   case SUBMENU_FUGAS:
     // Test de Fugas
     char outputt[50];
-    result = runTestFugas(selected);
-    sprintf(outputt, "Fugas: %.2f %s", result.measuredValue, result.passed ? "OK" : "FALLA");
+    runTestFugas(selected);
+
     u8g2.clearBuffer();
     u8g2.drawStr(0, 12, outputt);
     u8g2.sendBuffer();
@@ -163,8 +158,8 @@ void mostrarMenu()
       Serial.println("SUBMENU CLICK");
       // pruebaClic();
 
-      result = runTestSonido(selected);
-      sprintf(output, "Sonido: %.2f %s", result.measuredValue, result.passed ? "OK" : "FALLA");
+       runTestSonido(selected);
+      // sprintf(output, "Sonido: %.2f %s", result.measuredValue, result.passed ? "OK" : "FALLA");
       u8g2.clearBuffer();
       u8g2.drawStr(0, 12, output);
       u8g2.sendBuffer();
@@ -179,7 +174,9 @@ void mostrarMenu()
 
     break;
   case SUBMENU_FLUJO:
-    controlBombaDurantePrueba(3, 10);
+    controlBombaDurantePrueba(3, 10, setupvalues);
+    Serial.println(resultadosTests["Caudal"].measuredValue);
+    
     // digitalWrite(BOMBA_PIN, LOW);
     // inyector.activarInyectorDesdeEncoder();
 
@@ -193,8 +190,8 @@ void mostrarMenu()
     break;
   case SUBMENU_TEMPERATURA:
     char outputtt[50];
-    result = runTestTemperatura(selected);
-    sprintf(outputtt, "Temperatura: %.2f %s", result.measuredValue, result.passed ? "OK" : "FALLA");
+    runTestTemperatura(selected);
+    // sprintf(outputtt, "Temperatura: %.2f %s", result.measuredValue, result.passed ? "OK" : "FALLA");
     u8g2.clearBuffer();
     u8g2.drawStr(0, 12, outputtt);
     u8g2.sendBuffer();

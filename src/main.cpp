@@ -8,6 +8,7 @@
 #include "pruebas/activatebankofproof/activatebankofproof.h"
 #include "selectrpm/selectrpm.h"
 #include "InjectorController/InjectorController.h"
+#include <Wire.h>
 // #include "max6675.h"
 #include <max6675.h>
 #include <Adafruit_INA219.h>
@@ -26,10 +27,18 @@
 //MAX6675 termocupla(PIN_CLK, PIN_CS, PIN_DO);
 // Crea una instancia del sensor en el pin 4 (ajusta según tu conexión)
 FlowSensor sensor(4);
-Adafruit_INA219 ina219;
 // Instanciar objetos globalmente
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, U8X8_PIN_NONE, 20, 21);
 ESP32Encoder encoder;
+///////////////////
+
+TwoWire ina219Wire(1);
+
+// Crea la instancia del sensor usando la instancia personalizada de TwoWire
+Adafruit_INA219 ina219(0x40);
+
+
+
 
 // Variables globales de estado (puedes inicializarlas aquí)
 Estado estadoActual = MENU_PRINCIPAL;
@@ -62,7 +71,14 @@ void setup()
   inyector.begin();
   sensor.begin();
 
+  ina219Wire.begin(8, 9);
 
+  // Inicializa el sensor INA219 utilizando el bus I2C alternativo
+  if (!ina219.begin(&ina219Wire)) {
+    Serial.println("No se encontró el chip INA219");
+    while (1) { delay(10); }
+  }
+  Serial.println("INA219 detectado correctamente");
  }
 
 void loop()
@@ -71,10 +87,14 @@ void loop()
   inyector.update(); // Actualiza el estado (no bloqueante)
   updateBuzzer();
   displayEncoderPosition();
-
   // Serial.print("C = "); 
   // Serial.println(thermocouple.readCelsius());
   // Serial.print("F = ");
   // Serial.println(thermocouple.readFahrenheit());
+
+  // Lecturas del sensor INA219
+
+  
+// Espera 2 segundos entre lecturas
 
 }
