@@ -50,7 +50,7 @@ void controlBombaDurantePrueba(unsigned long tiempoBombaEncendidaS, unsigned lon
 
   while (!(inyector.isActive && (millis() - inyector.startTime >= inyector.testDurationMs)))
   {
-
+    inyector.assess_ina();
     // inyector.assess_ina();
     unsigned long tiempoCiclo = millis() - inicioCiclo;
 
@@ -130,7 +130,7 @@ void mostrarMenu()
     break;
   case SUBMENU_MID_RES:
     beep();
-      
+      inyector.assess_ina();
     delay(1000);
 
     break;
@@ -175,8 +175,9 @@ void mostrarMenu()
     break;
   case SUBMENU_FLUJO:
     controlBombaDurantePrueba(3, 10, setupvalues);
+    Serial.println("///////////////los resultados de la prueba////////////");
     Serial.println(resultadosTests["Caudal"].measuredValue);
-    
+    Serial.println("////////////////////////////////////////////");
     // digitalWrite(BOMBA_PIN, LOW);
     // inyector.activarInyectorDesdeEncoder();
 

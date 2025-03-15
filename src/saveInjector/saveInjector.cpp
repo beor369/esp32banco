@@ -7,7 +7,7 @@
 
 // Preferences para NVS (almacenamiento de datos personalizados)
 Preferences preferences;
-
+InjectorData selected; // Declaración externa
 extern U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2;
 extern ESP32Encoder encoder;
 // ====== ESTRUCTURA Y DATOS DE INYECTORES ======
@@ -28,9 +28,9 @@ uint8_t numInyectores = 0;
 
 // Datos de fábrica (por defecto)
 const InjectorData defaultInyectores[NUM_DEFAULT_INJECTORES] = {
-    {"ModeloA", 10.0, 5.0, 0.5, 0.8, 3.2, 80.0, 40.0},
-    {"ModeloB", 12.0, 6.0, 0.4, 1.0, 3.0, 85.0, 40.0},
-    {"ModeloC", 9.5, 5.5, 0.6, 0.7, 3.5, 78.0, 40.0}};
+    {"ns 200", 13.0, 5.0, 0.5, 0.8, 3.2, 80.0, 40.0},
+    {"fz 2.0", 13.0, 6.0, 0.4, 1.0, 3.0, 85.0, 40.0},
+    {"nkd", 13.0, 5.5, 0.6, 0.7, 3.5, 78.0, 40.0}};
 
 // ====== FUNCIONES DE NVS ======
 void cargarDatos()

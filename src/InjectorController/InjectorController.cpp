@@ -2,6 +2,7 @@
 #include "config.h"
 #include "menu/Menu.h"
 #include "selectrpm/selectrpm.h"
+#include "GlobalVarials/GlobalVarials.h"
 #include <math.h>
 long frecuencia;
 unsigned long anchoPulsoUs;
@@ -50,19 +51,43 @@ void InjectorController::begin()
   ledcAttachPin(pin, channel);
 }
 
-void InjectorController::assess_ina()
-{
-  float shuntVoltage = ina219.getShuntVoltage_mV();
-  float busVoltage   = ina219.getBusVoltage_V();
-  float current      = ina219.getCurrent_mA();
-  float power        = ina219.getPower_mW();
-  
-  Serial.print("Bus Voltage:   "); Serial.print(busVoltage); Serial.println(" V");
-  Serial.print("Shunt Voltage: "); Serial.print(shuntVoltage); Serial.println(" mV");
-  Serial.print("Current:       "); Serial.print(current); Serial.println(" mA");
-  Serial.print("Power:         "); Serial.print(power); Serial.println(" mW");
+void InjectorController::assess_ina() {
+  // Lecturas del sensor INA219
+  float shuntVoltage = ina219.getShuntVoltage_mV(); // en mV
+  float busVoltage   = ina219.getBusVoltage_V();      // en V
+  float current      = ina219.getCurrent_mA();         // en mA
+  float power        = ina219.getPower_mW();           // en mW
+
+  // Imprimir valores medidos con 4 decimales (puedes ajustar el número según prefieras)
+  Serial.print("Bus Voltage:   "); Serial.print(busVoltage, 4); Serial.println(" V");
+  Serial.print("Shunt Voltage: "); Serial.print(shuntVoltage, 4); Serial.println(" mV");
+  Serial.print("Current:       "); Serial.print(current, 4); Serial.println(" mA");
+  Serial.print("Power:         "); Serial.print(power, 4); Serial.println(" mW");
   Serial.println("");
+
+  // Parámetros para ajuste de la medición
+  double current_A = current / 1000;
+  Serial.print("current_A: "); Serial.println(current_A, 8);  // 8 decimales
+  
+  double ohm= busVoltage / current_A;
+
+  InjectorData inyec = globalInjector.getInjector();
+  TestResult result;
+
+  result.expectedValue= inyec.resistencia;
+  result.measuredValue= ohm;
+
+  if (inyec.resistencia > (ohm - 1) && inyec.resistencia < (ohm + 1)){
+      result.passed= true;
+  } else{
+      result.passed= false;
+  }
+  
+  resultadosTests["Resistencia"] = result;
+
 }
+
+
 
 
 void InjectorController::calculateDutyCycle()

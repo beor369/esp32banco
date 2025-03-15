@@ -66,19 +66,19 @@ void setup()
   mostrarMenu(); // Muestra el menú inicial
   cargarDatos();
   setupbit(); 
-  setupmic();
+  setupmic(); 
   setupselectrpm();
   inyector.begin();
   sensor.begin();
 
-  ina219Wire.begin(8, 9);
+  // ina219Wire.begin(8, 9);
 
-  // Inicializa el sensor INA219 utilizando el bus I2C alternativo
-  if (!ina219.begin(&ina219Wire)) {
-    Serial.println("No se encontró el chip INA219");
-    while (1) { delay(10); }
-  }
-  Serial.println("INA219 detectado correctamente");
+  // // Inicializa el sensor INA219 utilizando el bus I2C alternativo
+  // if (!ina219.begin(&ina219Wire)) {
+  //   Serial.println("No se encontró el chip INA219");
+  //   while (1) { delay(10); }
+  // }
+  // Serial.println("INA219 detectado correctamente");
  }
 
 void loop()

@@ -10,7 +10,7 @@
 
 struct InjectorData {
     char modelo[MAX_MODEL_LEN];   // Nombre o modelo
-    float resistencia;
+    double resistencia;
     float caudal;
     float fugas;
     float tiempoRespuesta;
@@ -31,6 +31,6 @@ void handleShowInjector();
 void handleTestInjector();
 void cargarDatos();
 int selectMenuOption(const char* title, const char* options[], int numOptions) ;
-
+extern InjectorData selected; // Declaración externa
   
 #endif // INYECTORES_H
