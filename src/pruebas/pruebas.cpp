@@ -5,7 +5,7 @@
 #include "Menu/Menu.h"
 #include "config.h"
 #include "selectrpm/selectrpm.h"
-#include "flow_sensor/flow_sensor.h"
+
 #include "max6675.h"
 #include <map>
 #include <string>
@@ -44,29 +44,29 @@ TestResult testResistencia(float nominal, float tolerance)
 TestResult testFugas(float maxFlow)
 {
   TestResult result;
-  // Obtiene los valores calculados
-  float flow = sensor.getFlowRate();
-  float filteredFlow = sensor.getFilteredFlow();
-  if (sensor.isLeakDetected())
-  {
-    Serial.println("  ¡Fuga detectada!");
-    result.passed = false;
-  }
-  else
-  {
-    result.passed = true;
-    Serial.println("  No se detecta fuga.");
-  }
+  // // Obtiene los valores calculados
+  // float flow = sensor.getFlowRate();
+  // float filteredFlow = sensor.getFilteredFlow();
+  // if (sensor.isLeakDetected())
+  // {
+  //   Serial.println("  ¡Fuga detectada!");
+  //   result.passed = false;
+  // }
+  // else
+  // {
+  //   result.passed = true;
+  //   Serial.println("  No se detecta fuga.");
+  // }
   // Simula la medición de flujo en cc/min
   // float measuredFlow = maxFlow - 0.05; // Ejemplo
   // result.measuredValue = measuredFlow;
   // result.passed = (measuredFlow < maxFlow);
   return result;
 
-  Serial.print("Caudal: ");
-  Serial.print(flow);
-  Serial.print(" L/min - Filtrado: ");
-  Serial.print(filteredFlow);
+  // Serial.print("Caudal: ");
+  // Serial.print(flow);
+  // Serial.print(" L/min - Filtrado: ");
+  // Serial.print(filteredFlow);
 }
 
 // 3. Prueba de Sonido de Activación

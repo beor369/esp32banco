@@ -9,10 +9,10 @@
 #include "selectrpm/selectrpm.h"
 #include "InjectorController/InjectorController.h"
 #include <Wire.h>
+#include "ultrasonicsensor/ultrasonic_sensor.h"
 // #include "max6675.h"
 #include <max6675.h>
 #include <Adafruit_INA219.h>
-#include "flow_sensor/flow_sensor.h"
 #include "pruebas/pruebas.h"
 // Define los pines que se utilizarán (ajusta según tu conexión)
 // #define PIN_CLK 45    // Pin de reloj SPI
@@ -26,7 +26,7 @@
 // MAX6675 termocupla(PIN_CLK, PIN_CS, PIN_DO);
 //MAX6675 termocupla(PIN_CLK, PIN_CS, PIN_DO);
 // Crea una instancia del sensor en el pin 4 (ajusta según tu conexión)
-FlowSensor sensor(4);
+// FlowSensor sensor(4);
 // Instanciar objetos globalmente
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, U8X8_PIN_NONE, 20, 21);
 ESP32Encoder encoder;
@@ -69,7 +69,8 @@ void setup()
   setupmic(); 
   setupselectrpm();
   inyector.begin();
-  sensor.begin();
+  ultrasonic_sensor.begin();
+  // sensor.begin();
 
   // ina219Wire.begin(8, 9);
 
@@ -83,10 +84,12 @@ void setup()
 
 void loop()
 {
-  sensor.update();
+  // sensor.update();
   inyector.update(); // Actualiza el estado (no bloqueante)
   updateBuzzer();
   displayEncoderPosition();
+  ultrasonic_sensor.getDistance();
+  ultrasonic_sensor.printDistance();
   // Serial.print("C = "); 
   // Serial.println(thermocouple.readCelsius());
   // Serial.print("F = ");

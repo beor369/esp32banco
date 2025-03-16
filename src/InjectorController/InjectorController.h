@@ -5,7 +5,6 @@
 #include "config.h"
 #include "selectrpm/selectrpm.h"
 #include "menu/Menu.h"
-#include "flow_sensor/flow_sensor.h"
 struct InyectorParametros {
   long frecuencia;
   unsigned long anchoPulsoUs;
