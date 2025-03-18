@@ -5,6 +5,7 @@
 #include "pruebas/activatebankofproof/activatebankofproof.h"
 #include "selectrpm/selectrpm.h"
 #include "ultrasonicsensor/ultrasonic_sensor.h"
+#include "help/help.h"
 
 #include "InjectorController/InjectorController.h"
 // Declaración de variables globales (definidas en main.cpp)
@@ -249,6 +250,8 @@ void mostrarMenu()
     // delay(10000);
     // Detener manualmente:
     // inyector.stop();
+    // mostrarAyuda();
+    mostrarAyuda();
     break;
   default:
     break;
