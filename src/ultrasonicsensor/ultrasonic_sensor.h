@@ -9,6 +9,7 @@ public:
     void begin();
     float getDistance();
     void printDistance();
+    float cycles_get_distance(int ciclos);
 
 private:
     int trigPin;

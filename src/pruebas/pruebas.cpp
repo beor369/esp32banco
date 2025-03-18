@@ -11,7 +11,7 @@
 #include <string>
 int thermoDO = 11;
 int thermoCS = 45;
-int thermoCLK = 12;
+int thermoCLK = 48;
 unsigned long buzzerStarTime;
 bool buzzerActive;
 unsigned long buzzerStartTime;

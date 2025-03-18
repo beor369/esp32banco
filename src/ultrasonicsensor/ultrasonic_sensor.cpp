@@ -1,4 +1,6 @@
 #include "ultrasonic_sensor.h"
+#include <map>
+#include <vector>
 
 #define ECHO_PIN 2  
 #define TRIG_PIN 4  
@@ -29,4 +31,33 @@ void UltrasonicSensor::printDistance() {
     Serial.print("Distance: ");
     Serial.print(distance);
     Serial.println(" cm");
+}
+
+
+float UltrasonicSensor::cycles_get_distance(int ciclos) {
+    std::vector<float> distancias;
+    
+    for (int ci = 0; ci < ciclos; ci++) {
+        float distance = getDistance();
+        distancias.push_back(distance);
+        delay(1000); // Espera de 1 segundo entre mediciones
+    }
+    
+    // Mapa para contar la frecuencia de cada distancia
+    std::map<float, int> frecuencia;
+    for (float d : distancias) {
+        frecuencia[d]++;
+    }
+
+    // Buscar el valor más repetido
+    float moda = 0;
+    int maxFrecuencia = 0;
+    for (const auto& par : frecuencia) {
+        if (par.second > maxFrecuencia) {
+            maxFrecuencia = par.second;
+            moda = par.first;
+        }
+    }
+
+    return moda; // Retorna el valor más repetido
 }

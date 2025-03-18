@@ -88,8 +88,6 @@ void loop()
   inyector.update(); // Actualiza el estado (no bloqueante)
   updateBuzzer();
   displayEncoderPosition();
-  ultrasonic_sensor.getDistance();
-  ultrasonic_sensor.printDistance();
   // Serial.print("C = "); 
   // Serial.println(thermocouple.readCelsius());
   // Serial.print("F = ");

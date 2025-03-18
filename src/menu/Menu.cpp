@@ -4,6 +4,7 @@
 #include "pruebas/pruebas.h"
 #include "pruebas/activatebankofproof/activatebankofproof.h"
 #include "selectrpm/selectrpm.h"
+#include "ultrasonicsensor/ultrasonic_sensor.h"
 
 #include "InjectorController/InjectorController.h"
 // Declaración de variables globales (definidas en main.cpp)
@@ -49,8 +50,6 @@ void controlBombaDurantePrueba(unsigned long tiempoBombaEncendidaS, unsigned lon
 
   while (!(inyector.isActive && (millis() - inyector.startTime >= inyector.testDurationMs)))
   {
-    //inyector.assess_ina();
-    // inyector.assess_ina();
     unsigned long tiempoCiclo = millis() - inicioCiclo;
 
     if (bombaEncendida && (tiempoCiclo >= tiempoBombaEncendidaMs))
@@ -71,6 +70,8 @@ void controlBombaDurantePrueba(unsigned long tiempoBombaEncendidaS, unsigned lon
 
   digitalWrite(BOMBA_PIN, HIGH);
 }
+
+
 
 
 
@@ -205,9 +206,11 @@ void mostrarMenu()
   case SUBMENU_TIEMPO_RESPUESTA:
 
     break;
-  case SUBMENU_FLUJO:
+  case SUBMENU_FLUJO: {
     controlBombaDurantePrueba(3, 10, setupvalues);
+    float vol = ultrasonic_sensor.cycles_get_distance(30);
     Serial.println("///////////////los resultados de la prueba////////////");
+    Serial.println(vol);
     Serial.println(resultadosTests["Caudal"].measuredValue);
     Serial.println("////////////////////////////////////////////");
     // digitalWrite(BOMBA_PIN, LOW);
@@ -221,6 +224,7 @@ void mostrarMenu()
     // digitalWrite(BOMBA_PIN, HIGH);
     estadoActual = SUBMENU_MANUAL;
     break;
+  }
   case SUBMENU_TEMPERATURA:
     char outputtt[50];
     runTestTemperatura(selected);
