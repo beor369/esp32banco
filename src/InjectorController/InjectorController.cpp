@@ -14,20 +14,35 @@ unsigned long tiempoPruebaSecc;
 
 InjectorController inyector(INYECTOR_PIN, 0, 12);
 
-InyectorParametros InjectorController::activarInyectorDesdeEncoder()
+InyectorParametros InjectorController::activarInyectorDesdeEncoder(long test_time)
 {
-  // Convertir a parámetros técnicos (asegurar unidades correctas)
-  // float frecuencia = rpmValue / 120.0f;          // RPM → Hz (4 tiempos)
-  // unsigned long anchoPulsoUs = pulseWidthValue * 1000; // ms → µs
-  // unsigned long tiempoPruebaSec = testTimeValue / 1000; // ms → segundos
-  frecuencia = rpmValue / 120.0f;         // RPM → Hz (4 tiempos)
+
+  if (this->rpmValue_tem==0)
+  {
+    frecuencia = rpmValue / 120.0f;  
+  }else
+  {
+    frecuencia = this->rpmValue_tem / 120.0f;  
+  }
+
+  
   anchoPulsoUs = pulseWidthValue * 1000;  // ms → µs
-  tiempoPruebaSec = testTimeValue / 1000; // ms → segundos
+
+  tiempoPruebaSec = test_time / 1000; // ms → segundos
 
   inyector.activate(frecuencia, anchoPulsoUs, tiempoPruebaSec);
 
   return {frecuencia, anchoPulsoUs, tiempoPruebaSec};
 }
+
+
+void InjectorController::activar_injector_sin_revolucion(float time)
+{
+
+}
+
+
+
 InyectorParametros InjectorController::devolver()
 {
   // Convertir a parámetros técnicos (asegurar unidades correctas)
@@ -92,38 +107,66 @@ void InjectorController::assess_ina() {
 
 void InjectorController::calculateDutyCycle()
 {
-  uint64_t periodUs = 1000000 / frequency;
 
-  if (pulseWidthUs > periodUs)
+  uint64_t periodUs;
+  periodUs = 1000000 / this->frequency;
+
+  if (this->pulseWidthUs > periodUs)
   {
     Serial.println("Error: Pulse width > Period");
     stop();
     return;
   }
   
-  uint32_t duty = (pulseWidthUs * frequency * (1ULL << resolution)) / 1000000ULL;
-  duty = min(duty, (uint32_t)((1ULL << resolution) - 1)); // ¡Corrección aquí!
-  ledcWrite(channel, duty);
+  uint32_t duty = (this->pulseWidthUs * this->frequency * (1ULL << this->resolution)) / 1000000ULL;
+  duty = min(duty, (uint32_t)((1ULL << this->resolution) - 1)); // ¡Corrección aquí!
+  ledcWrite(this->channel, duty);
 
 }
 
 void InjectorController::activate(float freq, unsigned long pulseWidthUs, unsigned long testDurationSec)
 {
-  frequency = freq;
+  this->frequency = freq;
   this->pulseWidthUs = pulseWidthUs;
-  testDurationMs = testDurationSec * 1000;
+  this->testDurationMs = testDurationSec * 1000;
 
+  // Configuramos el PWM
+  ledcSetup(this->channel, this->frequency, this->resolution);
 
-  ledcSetup(channel, frequency, resolution);
+  uint32_t maxDuty = (1ULL << this->resolution) - 1;
 
-  calculateDutyCycle();
+  // Si está en 0% de ciclo de trabajo (desactivado)
+  if (this->is_activate_min)
+  {
+    ledcWrite(this->channel, 0);  // PWM en 0%
+    Serial.println("Inyector NO activado (PWM con ciclo de trabajo del 0%).");
+    isActive = true;
+    startTime = millis();  // Registrar el tiempo aunque esté desactivado
+    return;
+  }
 
-  isActive = true;
-  startTime = millis();
+  // Si está en 100% de ciclo de trabajo (máximo activado)
+  if (this->is_activate_max)
+  {
+    ledcWrite(this->channel, maxDuty);  // PWM en 100%
+    Serial.println("Inyector ACTIVADO al máximo (PWM con ciclo de trabajo del 100%).");
+  }
+  else
+  {
+    // Configuración normal: se calcula el ciclo de trabajo según el ancho de pulso
+    calculateDutyCycle();
+    Serial.printf("Inyector ACTIVADO - F: %.1fHz, PW: %luµs, T: %lus\n",
+                  frequency, pulseWidthUs, testDurationSec);
+  }
 
-  Serial.printf("Inyector ACTIVADO - F: %.1fHz, PW: %luµs, T: %lus\n",
-                frequency, pulseWidthUs, testDurationSec);
+  Serial.println("hola estoy aquui");
+
+  this->isActive = true;
+  this->startTime = millis();  // Registrar el tiempo de activación
+  return;
 }
+
+
 
 void InjectorController::stop_bomba()
 {
@@ -164,13 +207,14 @@ void InjectorController::update()
 {
   if (isActive && (millis() - startTime >= testDurationMs))
   {
-    // inyector.assess_ina();
     stop();
   }
 }
 
 void InjectorController::stop()
 {
+  this->is_activate_max=false;
+  this->is_activate_min= false;
   ledcWrite(channel, 0);
   isActive = false;
   Serial.println("Inyector DESACTIVADO");

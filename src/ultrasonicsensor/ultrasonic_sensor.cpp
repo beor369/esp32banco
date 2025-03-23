@@ -34,7 +34,7 @@ void UltrasonicSensor::printDistance() {
 }
 
 
-float UltrasonicSensor::cycles_get_distance(int ciclos) {
+float UltrasonicSensor::get_distance_fashion(int ciclos, bool is_save_fashion) {
     std::vector<float> distancias;
     
     for (int ci = 0; ci < ciclos; ci++) {
@@ -57,6 +57,12 @@ float UltrasonicSensor::cycles_get_distance(int ciclos) {
             maxFrecuencia = par.second;
             moda = par.first;
         }
+    }
+
+
+    if (is_save_fashion)
+    {
+        this->distaceFashion= moda;
     }
 
     return moda; // Retorna el valor más repetido

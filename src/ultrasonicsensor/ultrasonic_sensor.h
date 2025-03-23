@@ -9,11 +9,13 @@ public:
     void begin();
     float getDistance();
     void printDistance();
-    float cycles_get_distance(int ciclos);
+    float get_distance_fashion(int ciclos, bool is_fashion);
+    float distaceFashion;
 
 private:
     int trigPin;
     int echoPin;
+
 };
 
 extern UltrasonicSensor ultrasonic_sensor;

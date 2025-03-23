@@ -11,35 +11,35 @@ void setupEncoder() {
   pinMode(ENCODER_PIN_A, INPUT_PULLUP);
   pinMode(ENCODER_PIN_B, INPUT_PULLUP);
   encoder.attachHalfQuad(ENCODER_PIN_A, ENCODER_PIN_B);
-  encoder.clearCount();
+ 
   pinMode(botonPin, INPUT_PULLUP);
+  encoder.clearCount();
 }
 
 // Manejo del movimiento del encoder y actualización de índices según el estado
-void displayEncoderPosition() {
+void displayEncoderPosition(void (*callback)(), void (*callbackindice)(bool), void (*callback_manejar_estado)()) {
   int valorEncoder = encoder.getCount();
   if (millis() - lastEncoderMoveTime > encoderMoveDelay) {
     if (valorEncoder > 0) {
-      actualizarIndice(true);  // Función definida en Menu.cpp
+      delay(50);
+      callbackindice(true);
       encoder.clearCount();
-      mostrarMenu();
+      callback();
       lastEncoderMoveTime = millis();
     } else if (valorEncoder < 0) {
- 
-      actualizarIndice(false);
+      delay(50);
+      callbackindice(false);
       encoder.clearCount();
-      mostrarMenu();
+      callback();
       lastEncoderMoveTime = millis();
     }
 
-
-
     if (digitalRead(botonPin) == LOW) {
-      delay(50);  // Debounce
+      delay(100);  
       if (digitalRead(botonPin) == LOW) {
-        manejarEstado();  // Función que cambia el estado actual
-        mostrarMenu();    // Actualiza la pantalla según el nuevo estado
-        delay(300);       // Debounce adicional
+        callback_manejar_estado();
+        callback();   
+        delay(300);
       }
     }
   }

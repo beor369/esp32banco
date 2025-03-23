@@ -39,15 +39,60 @@ static const int tamanioseleccionarmoto = sizeof(seleccionarMotoImagenes) / size
 
 typedef void (*Callback)();
 
-void controlBombaDurantePrueba(unsigned long tiempoBombaEncendidaS, unsigned long tiempoBombaApagadaS, Callback actualizaValores)
+enum EstadoInyector
+{
+  INYECTOR_DESACTIVADO,
+  ACTIVA_INYECTOR_SIN_REVOLUCION,
+  ACTIVA_INYECTOR_CON_REVOLUCION,
+  INJECTOR_MIN
+};
+
+namespace estate_inyector
+{
+  constexpr EstadoInyector INYECTOR_DESACTIVADO = EstadoInyector::INYECTOR_DESACTIVADO;
+  constexpr EstadoInyector ACTIVA_INYECTOR_SIN_REVOLUCION = EstadoInyector::ACTIVA_INYECTOR_SIN_REVOLUCION;
+  constexpr EstadoInyector ACTIVA_INYECTOR_CON_REVOLUCION = EstadoInyector::ACTIVA_INYECTOR_CON_REVOLUCION;
+  constexpr EstadoInyector INJECTOR_MIN = EstadoInyector::INJECTOR_MIN;
+}
+
+void controlBombaDurantePrueba(unsigned long tiempoBombaEncendidaS, unsigned long tiempoBombaApagadaS, long time_injector, Callback actualizaValores, EstadoInyector estadoInyector)
 {
   unsigned long tiempoBombaEncendidaMs = tiempoBombaEncendidaS * 1000;
   unsigned long tiempoBombaApagadaMs = tiempoBombaApagadaS * 1000;
   unsigned long inicioCiclo = millis();
   bool bombaEncendida = true;
 
+  switch (estadoInyector)
+  {
+  case estate_inyector::ACTIVA_INYECTOR_SIN_REVOLUCION:
+    inyector.is_activate_max = true;
+    inyector.is_activate_min = false;
+    inyector.activarInyectorDesdeEncoder(time_injector);
+    break;
+  case estate_inyector::ACTIVA_INYECTOR_CON_REVOLUCION:
+    inyector.activarInyectorDesdeEncoder(time_injector);
+    break;
+  case estate_inyector::INJECTOR_MIN:
+    inyector.is_activate_min = true;
+    inyector.is_activate_max = false;
+    inyector.activarInyectorDesdeEncoder(time_injector);
+    break;
+  case estate_inyector::INYECTOR_DESACTIVADO:
+  default:
+    break;
+  }
+
+  // Si ambos tiempos son 0, la bomba no se activa
+  if (tiempoBombaEncendidaMs == 0 && tiempoBombaApagadaMs == 0)
+  {
+    while (!(inyector.isActive && (millis() - inyector.startTime >= inyector.testDurationMs)))
+    {
+      actualizaValores(); // Sigue actualizando valores mientras se ejecuta la prueba
+    }
+    return; // Sale de la función sin activar la bomba
+  }
+
   digitalWrite(BOMBA_PIN, LOW); // Enciende la bomba
-  inyector.activarInyectorDesdeEncoder();
 
   while (!(inyector.isActive && (millis() - inyector.startTime >= inyector.testDurationMs)))
   {
@@ -69,42 +114,16 @@ void controlBombaDurantePrueba(unsigned long tiempoBombaEncendidaS, unsigned lon
     actualizaValores();
   }
 
-  digitalWrite(BOMBA_PIN, HIGH);
+  digitalWrite(BOMBA_PIN, HIGH); // Apaga la bomba al final del ciclo
 }
-
-
-
-
-
 
 void setupvalues()
 {
-    InyectorParametros values = inyector.devolver();
+  InyectorParametros values = inyector.devolver();
 
-    // double expectedVolume = calculateExpectedVolume(values.frecuenciaa, values.anchoPulsoUss, values.tiempoPruebaSecc);
-    // unsigned long sensorVolume = calculateSensorVolume();
-
-    // Definimos una tolerancia del 10%
-    unsigned long tolerancePercent = 10;
-
-    TestResult results;
-    // results.measuredValue = sensorVolume;
-    // results.expectedValue = expectedVolume;
-    // results.passed = compareVolumes(expectedVolume, sensorVolume, tolerancePercent);
-
-    // Verificar si "Caudal" ya existe en resultadosTests antes de asignar
-    // if (resultadosTests.find("Caudal") == resultadosTests.end())
-    // {
-    //     resultadosTests["Caudal"] = results;
-    // }
-    // else
-    // {
-    //     resultadosTests["Caudal"].measuredValue 
-    // }
+  unsigned long tolerancePercent = 10;
+  TestResult results;
 }
-
-
-
 
 // Muestra el menú según el estado actual
 void mostrarMenu()
@@ -164,23 +183,29 @@ void mostrarMenu()
     break;
   case SUBMENU_MID_RES:
     beep();
-      inyector.assess_ina();
+    inyector.assess_ina();
     delay(1000);
 
     break;
   case SUBMENU_FUGAS:
-    // Test de Fugas
-    char outputt[50];
-    runTestFugas(selected);
+  { // Test de Fugas
 
-    u8g2.clearBuffer();
-    u8g2.drawStr(0, 12, outputt);
-    u8g2.sendBuffer();
-    delay(5000);
+    ultrasonic_sensor.get_distance_fashion(20, true);
+    Serial.println("activamos la bomba");
+    controlBombaDurantePrueba(1, 18, 12000, [](){ Callback(); }, estate_inyector::INJECTOR_MIN);
+    Serial.println("desalojamos liquido");
+    controlBombaDurantePrueba(0, 0, 20, [](){ Callback(); }, estate_inyector::ACTIVA_INYECTOR_SIN_REVOLUCION);
+    testFugas();
+
+    
+    
+
+
 
     estadoActual = SUBMENU_MANUAL;
 
     break;
+  }
   case SUBMENU_CLICK:
 
     inyector.activate(50.0, 2500, 5);
@@ -192,7 +217,7 @@ void mostrarMenu()
       Serial.println("SUBMENU CLICK");
       // pruebaClic();
 
-       runTestSonido(selected);
+      runTestSonido();
       // sprintf(output, "Sonido: %.2f %s", result.measuredValue, result.passed ? "OK" : "FALLA");
       u8g2.clearBuffer();
       u8g2.drawStr(0, 12, output);
@@ -205,13 +230,33 @@ void mostrarMenu()
 
     break;
   case SUBMENU_TIEMPO_RESPUESTA:
-
-    break;
-  case SUBMENU_FLUJO: {
-    controlBombaDurantePrueba(3, 10, setupvalues);
-    float vol = ultrasonic_sensor.cycles_get_distance(30);
+  {
+    inyector.rpmValue_tem = 0;
+    controlBombaDurantePrueba(3, 10, 12000, setupvalues, estate_inyector::ACTIVA_INYECTOR_CON_REVOLUCION);
+    // float vol = ultrasonic_sensor.cycles_get_distance(30);
     Serial.println("///////////////los resultados de la prueba////////////");
-    Serial.println(vol);
+    // Serial.println(vol);
+    Serial.println(resultadosTests["Caudal"].measuredValue);
+    Serial.println("////////////////////////////////////////////");
+    // digitalWrite(BOMBA_PIN, LOW);
+    // inyector.activarInyectorDesdeEncoder();
+
+    // while (!(inyector.isActive && (millis() - inyector.startTime >= inyector.testDurationMs)))
+    // {
+    //   setupvalues();
+    // }
+
+    // digitalWrite(BOMBA_PIN, HIGH);
+    estadoActual = SUBMENU_MANUAL;
+    break;
+  }
+  case SUBMENU_FLUJO:
+  {
+    inyector.rpmValue_tem = 0;
+    controlBombaDurantePrueba(3, 10, testTimeValue, setupvalues, estate_inyector::ACTIVA_INYECTOR_CON_REVOLUCION);
+    // float vol = ultrasonic_sensor.cycles_get_distance(30);
+    Serial.println("///////////////los resultados de la prueba////////////");
+    // Serial.println(vol);
     Serial.println(resultadosTests["Caudal"].measuredValue);
     Serial.println("////////////////////////////////////////////");
     // digitalWrite(BOMBA_PIN, LOW);
@@ -227,15 +272,25 @@ void mostrarMenu()
     break;
   }
   case SUBMENU_TEMPERATURA:
-    char outputtt[50];
-    runTestTemperatura(selected);
-    // sprintf(outputtt, "Temperatura: %.2f %s", result.measuredValue, result.passed ? "OK" : "FALLA");
+  {
+    inyector.rpmValue_tem = 6500;
+    controlBombaDurantePrueba(3, 10, 12000, runTestTemperatura, estate_inyector::ACTIVA_INYECTOR_CON_REVOLUCION);
     u8g2.clearBuffer();
-    u8g2.drawStr(0, 12, outputtt);
+    u8g2.setFont(u8g2_font_6x12_tf);
+    // Convertir valores a string antes de pasarlos a drawStr()
+    std::string expectedValueStr = resultadosTests["temperatura"].expectedValue.has_value()
+                                       ? std::to_string(resultadosTests["temperatura"].expectedValue.value())
+                                       : "N/A";
+    std::string measuredValueStr = std::to_string(resultadosTests["temperatura"].measuredValue);
+    std::string passedStr = resultadosTests["temperatura"].passed ? "PASSED" : "FAILED";
+
+    u8g2.drawStr(0, 5, expectedValueStr.c_str());
+    u8g2.drawStr(0, 18, measuredValueStr.c_str());
+    u8g2.drawStr(0, 25, passedStr.c_str());
     u8g2.sendBuffer();
-    delay(2000);
 
     break;
+  }
   case SUBMENU_RESULTADOS:
 
     break;
@@ -252,6 +307,7 @@ void mostrarMenu()
     // inyector.stop();
     // mostrarAyuda();
     mostrarAyuda();
+
     break;
   default:
     break;

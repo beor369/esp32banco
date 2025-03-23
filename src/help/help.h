@@ -1,17 +1,18 @@
 #ifndef HELP_H
 #define HELP_H
 
-#include "config.h"
-#include "encoderhadler/EncoderHandler.h"
-#include "menu/Menu.h"
-// Declaración de funciones del módulo de ayuda
-void mostrarAyuda();
-void mostrarRespuesta();
-//void mostrarAyuda();
+#include <U8g2lib.h> // Asegúrate de incluir la librería necesaria
 
-// Declaración de funciones para la lectura del encoder y del botón
-// Estas funciones deben implementarse de acuerdo a tu hardware.
-int leerEncoder();
-bool botonSeleccionado();
+// Variables globales para el menú de ayuda
+extern int ayudaSelectedOption;
+extern bool ayudaExitHelp;
+
+
+// Funciones del menú de ayuda
+void actualizarIndice_help(bool incremento);
+void redrawAyudaMenu();
+void manejarEstadoAyuda();
+extern void mostrarAyuda();
+void mostrarRespuesta(int opcion); 
 
 #endif // HELP_H

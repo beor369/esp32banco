@@ -1,184 +1,143 @@
-#include "config.h"
-#include <Wire.h>
-#include "encoderhadler/EncoderHandler.h"
 #include "menu/Menu.h"
+#include "displayhandler/DisplayHandler.h"
+#include "saveInjector/saveInjector.h"
+#include "pruebas/pruebas.h"
+#include "pruebas/activatebankofproof/activatebankofproof.h"
+#include "encoderhadler/EncoderHandler.h"
 
+#include "InjectorController/InjectorController.h"
 
-// Prototipos de funciones para leer el encoder y detectar botón
-int leerEncoder();         // Debe retornar 1 (giro a la derecha), -1 (giro a la izquierda) o 0 (sin cambio)
-bool botonSeleccionado();  // Debe retornar true cuando se presiona el botón
-void mostrarRespuesta(int index);
-// Función para mostrar el menú de ayuda (FAQs)
-void mostrarAyuda() {
-  bool exitHelp = false;
-  int selectedOption = 0;
-  const int numPreguntas = 8;
-  
-  // Array con las preguntas frecuentes y opciones del menú
-  const char* preguntas[numPreguntas] = {
-    "1. ¿Como iniciar una prueba?",
-    "2. ¿Como seleccionar un inyector?",
-    "3. ¿Que es el modo automatico?",
-    "4. ¿Como agregar un nuevo inyector?",
-    "5. ¿Ver caracteristicas?",
-    "6. ¿Ver resultados?",
-    "7. Atencion al Cliente",
-    "8. Salir"
+int ayudaSelectedOption = 0;
+bool ayudaExitHelp = false;
+const int ayudaNumPreguntas = 8;
+const char* const ayudaPreguntas[ayudaNumPreguntas] = {
+  "1. ¿iniciar una prueba?",
+  "2. ¿Seleccionar un inyector?",
+  "3. ¿modo automático?",
+  "4. ¿Nuevo inyector?",
+  "5. ¿Ver características?",
+  "6. ¿Ver resultados?",
+  "7. Atención al Cliente",
+  "8. Salir"
+};
+
+void mostrarRespuesta(int index) {
+  static const char* const respuestas[][3] = {
+    { "Para iniciar una prueba: Seleccione 'Iniciar Prueba' en el menu principal. Configure RPM, ancho y tiempo segun necesidad.", NULL, NULL },
+    { "Para seleccionar un inyector: Elija el modelo en el submenu 'Seleccionar Inyector'. Si no se encuentra, use 'Agregar Inyector'.", NULL, NULL },
+    { "El modo automatico ejecuta pruebas secuenciales en tiempo real.", NULL, NULL },
+    { "Para agregar un nuevo inyector: Ingrese a 'Agregar Inyector' en el menu principal e ingrese los datos solicitados.", NULL, NULL },
+    { "Para ver las caracteristicas: Seleccione 'Ver Caracteristicas' en el menu correspondiente. Se muestran datos comparativos.", NULL, NULL },
+    { "Para ver los resultados obtenidos: Seleccione 'Ver Resultados' en el menu.", NULL, NULL },
+    { "Atencion al Cliente: Tel: 3157652018. Correo: bolaya@uts.edu.co.", NULL, NULL }
   };
 
-  while (!exitHelp) {
-    u8g2.clearBuffer();
-    u8g2.setFont(u8g2_font_ncenB08_tr);
-    u8g2.drawStr(0, 10, "=== Ayuda - FAQs ===");
-    u8g2.drawStr(0, 20, "--------------------");
-    
-    // Muestra las opciones en el menú, resaltando la opción seleccionada
-    int y = 30;
-    for (int i = 0; i < numPreguntas; i++) {
-      if (i == selectedOption) {
-        // Dibuja una flecha antes de la opción seleccionada
-        u8g2.drawStr(0, y, ">");
-        u8g2.drawStr(10, y, preguntas[i]);
-      } else {
-        u8g2.drawStr(10, y, preguntas[i]);
-      }
-      y += 10; // Ajusta el espaciado entre líneas según sea necesario
-    }
-    u8g2.sendBuffer();
+  const int numRespuestas = sizeof(respuestas) / sizeof(respuestas[0]);
+  
+  if (index < 0 || index >= numRespuestas) return;
 
-    // Lee el movimiento del encoder
-    int cambio =encoder.getCount();
-    if (cambio > 0 && selectedOption < numPreguntas - 1) {
-      selectedOption++;
-      delay(200); // Pequeña pausa para evitar múltiples cambios
-    } else if (cambio < 0 && selectedOption > 0) {
-      selectedOption--;
-      delay(200);
-    }
-    
-    // Si se presiona el botón de selección
-    if (digitalRead(botonPin)) {
-      // Si se selecciona "Salir", se finaliza la función
-      if (selectedOption == numPreguntas - 1) {
-        exitHelp = true;
-      } else {
-        // Muestra la respuesta correspondiente a la opción seleccionada
-        mostrarRespuesta(selectedOption);
-      }
-      delay(300);
-    }
-  }
-}
-
-// Función para mostrar la respuesta correspondiente a cada opción del menú
-void mostrarRespuesta(int index) {
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_ncenB08_tr);
-  int y = 10;
   
-  switch(index) {
-    case 0:
-      u8g2.drawStr(0, y, "Para iniciar una prueba:");
-      y += 10;
-      u8g2.drawStr(0, y, "- Seleccione 'Iniciar Prueba'");
-      y += 10;
-      u8g2.drawStr(0, y, "  en el menu principal.");
-      y += 10;
-      u8g2.drawStr(0, y, "- Configure RPM, ancho y");
-      y += 10;
-      u8g2.drawStr(0, y, "  tiempo segun necesidad.");
-      break;
-    case 1:
-      u8g2.drawStr(0, y, "Para seleccionar un inyector:");
-      y += 10;
-      u8g2.drawStr(0, y, "- Elija el modelo en el");
-      y += 10;
-      u8g2.drawStr(0, y, "  submenu 'Seleccionar Inyector'.");
-      y += 10;
-      u8g2.drawStr(0, y, "- Si no se encuentra, use");
-      y += 10;
-      u8g2.drawStr(0, y, "  'Agregar Inyector'.");
-      break;
-    case 2:
-      u8g2.drawStr(0, y, "El modo automatico:");
-      y += 10;
-      u8g2.drawStr(0, y, "- Ejecuta pruebas secuenciales");
-      y += 10;
-      u8g2.drawStr(0, y, "  en tiempo real.");
-      break;
-    case 3:
-      u8g2.drawStr(0, y, "Para agregar un nuevo inyector:");
-      y += 10;
-      u8g2.drawStr(0, y, "- Ingrese a 'Agregar Inyector'");
-      y += 10;
-      u8g2.drawStr(0, y, "  en el menu principal.");
-      y += 10;
-      u8g2.drawStr(0, y, "- Ingrese los datos solicitados.");
-      break;
-    case 4:
-      u8g2.drawStr(0, y, "Para ver las caracteristicas:");
-      y += 10;
-      u8g2.drawStr(0, y, "- Seleccione 'Ver Caracteristicas'");
-      y += 10;
-      u8g2.drawStr(0, y, "  en el menu correspondiente.");
-      y += 10;
-      u8g2.drawStr(0, y, "- Se muestran datos comparativos");
-      break;
-    case 5:
-      u8g2.drawStr(0, y, "Para ver los resultados obtenidos:");
-      y += 10;
-      u8g2.drawStr(0, y, "- Seleccione 'Ver Resultados'");
-      y += 10;
-      u8g2.drawStr(0, y, "  en el menu.");
-      break;
-    case 6:
-      u8g2.drawStr(0, y, "Atencion al Cliente:");
-      y += 10;
-      u8g2.drawStr(0, y, "Tel: 3157652018");
-      y += 10;
-      u8g2.drawStr(0, y, "Correo: bolaya@uts.edu.co");
-      break;
-    default:
-      u8g2.drawStr(0, y, "Opcion no disponible.");
-      break;
+  int x = 0;           // Posición X de inicio del texto
+  int y = 10;          // Posición Y inicial
+  int maxWidth = 120;  // Ajusta esto según el ancho de tu pantalla
+  int lineHeight = 10; // Espacio entre líneas
+
+  // Divide el texto automáticamente en líneas más cortas
+  char buffer[200];
+  strncpy(buffer, respuestas[index][0], sizeof(buffer));
+  buffer[sizeof(buffer) - 1] = '\0';  // Asegurar que esté terminado en NULL
+
+  char* token = strtok(buffer, " ");
+  String line = "";
+
+  while (token) {
+    String temp = line + token + " ";
+    int width = u8g2.getStrWidth(temp.c_str());
+
+    if (width > maxWidth) {
+      u8g2.drawStr(x, y, line.c_str());
+      y += lineHeight;
+      line = String(token) + " ";
+    } else {
+      line = temp;
+    }
+
+    token = strtok(NULL, " ");
   }
-  
-  y += 20;
-  u8g2.drawStr(0, y, "Presione el boton");
-  y += 10;
-  u8g2.drawStr(0, y, "para volver...");
+
+  // Imprime la última línea si hay texto pendiente
+  if (line.length() > 0) {
+    u8g2.drawStr(x, y, line.c_str());
+  }
+
+
   u8g2.sendBuffer();
-  
-  // Espera a que el usuario presione el botón para regresar al menú de ayuda
-  while (!botonSeleccionado()) {
-    delay(100);
+
+  // Espera a que el usuario presione el botón para regresar
+  delay(9000);
+}
+
+// Callbacks para el encoder
+void actualizarIndice_help(bool incremento) {
+  ayudaSelectedOption = incremento 
+                        ? min(ayudaSelectedOption + 1, ayudaNumPreguntas - 1) 
+                        : max(ayudaSelectedOption - 1, 0);
+}
+
+void redrawAyudaMenu() {
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_ncenB08_tr);
+  u8g2.drawStr(0, 10, "=== Ayuda - FAQs ===");
+  u8g2.drawStr(0, 20, "--------------------");
+
+  int maxLines = 3;  // Número exacto de preguntas visibles
+  static int scrollOffset = 0;
+  int lineHeight = 12;  // Espaciado adecuado entre líneas
+  int startY = 30;  // Posición de inicio del primer ítem
+
+  // Ajustar el desplazamiento cuando la opción seleccionada está fuera del rango visible
+  if (ayudaSelectedOption < scrollOffset) {
+    scrollOffset = ayudaSelectedOption;
+  } else if (ayudaSelectedOption >= scrollOffset + maxLines) {
+    scrollOffset = ayudaSelectedOption - maxLines + 1;
+  }
+
+  // Dibujar solo las opciones visibles en pantalla
+  for (int i = 0; i < maxLines; i++) {
+    int idx = scrollOffset + i;
+    if (idx >= ayudaNumPreguntas) break;  // No dibujar fuera del rango
+
+    int y = startY + (i * lineHeight);
+    if (idx == ayudaSelectedOption) {
+      u8g2.drawStr(0, y, ">");
+    }
+    u8g2.drawStr(10, y, ayudaPreguntas[idx]);
+  }
+
+  u8g2.sendBuffer();
+}
+
+
+void manejarEstadoAyuda() {
+  if (ayudaSelectedOption == ayudaNumPreguntas - 1) {
+    ayudaExitHelp = true;
+  } else {
+    mostrarRespuesta(ayudaSelectedOption);
   }
 }
 
-// Funciones ficticias para simular la lectura del encoder y del botón
-// Estas funciones deben ser implementadas de acuerdo a tu hardware
+void mostrarAyuda() {
+  ayudaExitHelp = false;
+  ayudaSelectedOption = 0;
+  redrawAyudaMenu(); // Dibuja el menú inicial
 
-int leerEncoder() {
-  // Retorna 1, -1 o 0 según el giro detectado.
-  // Implementa aquí la lectura real de tu encoder.
-  return 0;
+  while (!ayudaExitHelp) {
+    displayEncoderPosition(redrawAyudaMenu, actualizarIndice_help, manejarEstadoAyuda);
+    delay(10); // Pequeña pausa para evitar sobrecarga
+  }
 }
 
-bool botonSeleccionado() {
-  // Retorna true si el botón ha sido presionado.
-  // Implementa aquí la lectura real de tu botón.
-  return false;
-}
 
-// void setup() {
-//   u8g2.begin();
-//   Serial.begin(115200);
-//   // Configura los pines del encoder y del botón según tu hardware.
-// }
 
-// void loop() {
-//   // Invoca la función de ayuda cuando se requiera
-//   mostrarAyuda();
-//   // Resto del programa...
-//   delay(1000);
-// }

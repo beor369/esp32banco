@@ -9,9 +9,9 @@ struct InyectorParametros {
   long frecuencia;
   unsigned long anchoPulsoUs;
   unsigned long tiempoPruebaSec;
-   long frecuenciaa;
- unsigned long anchoPulsoUss;
- unsigned long tiempoPruebaSecc;
+  long frecuenciaa;
+  unsigned long anchoPulsoUss;
+  unsigned long tiempoPruebaSecc;
 };
 
 class InjectorController {
@@ -20,15 +20,18 @@ class InjectorController {
     uint8_t channel;
     uint8_t resolution;
     float frequency;
+    float rpmValue_tem=0;
     unsigned long pulseWidthUs;
     unsigned long testDurationMs;
+    bool is_activate_max= false;
+    bool is_activate_min= false;
     bool isActive;
     unsigned long startTime;
     void calculateDutyCycle();
 
   public:
     InjectorController(uint8_t pin, uint8_t channel, uint8_t resolution = 12);
-    InyectorParametros activarInyectorDesdeEncoder();
+    InyectorParametros activarInyectorDesdeEncoder(long test_time);
     InyectorParametros devolver();
     void begin();
     void assess_ina();
@@ -38,6 +41,7 @@ class InjectorController {
     void stop();
     void stop_bomba();
     void begin_bomba();
+    void activar_injector_sin_revolucion(float time);
     bool isInjectorActive() const;
 };
 extern InjectorController inyector; // Declaración externa

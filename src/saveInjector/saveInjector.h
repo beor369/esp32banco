@@ -23,14 +23,11 @@ struct InjectorData {
  extern InjectorData inyectores[MAX_INJECTORES];  // Personalizados (almacenados en NVS)
  extern uint8_t numInyectores;
 // Prototipos de las funciones principales
-void setup_save();
-void loop_save();
 void handleAddInjector();
 void handleDeleteData();
 void handleShowInjector();
 void handleTestInjector();
 void cargarDatos();
 int selectMenuOption(const char* title, const char* options[], int numOptions) ;
-extern InjectorData selected; // Declaración externa
   
 #endif // INYECTORES_H

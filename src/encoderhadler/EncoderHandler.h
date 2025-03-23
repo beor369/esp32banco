@@ -4,8 +4,7 @@
 #include <Arduino.h>
 
 void setupEncoder();
-void displayEncoderPosition();
-bool encoderButtonPressed();
+extern void displayEncoderPosition(void (*callback)(), void (*callbackindice)(bool), void (*callback_manejar_estado)());
 
 #endif
 

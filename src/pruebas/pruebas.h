@@ -29,26 +29,24 @@ struct TestResult {
 // };
 
 // Declaraciones de las funciones de pruebas (cada una utiliza los valores ideales del inyector)
-TestResult testResistencia(float nominal, float tolerance);
-TestResult testFugas(float maxFlow);
-TestResult testSonido(float threshold);
-TestResult testCorriente(float nominal, float minVal, float maxVal, unsigned long sampleDuration);
-TestResult testTiempoRespuesta(unsigned long maxOpenTime, unsigned long maxCloseTime);
-TestResult testCaudal(float nominal, float tolerance, unsigned long duration);
-TestResult monitorTemperatura(float maxTemp);
+void testResistencia();
+void testFugas();
+void testSonido();
+void testCorriente(float nominal, float minVal, float maxVal, unsigned long sampleDuration);
+void testTiempoRespuesta(unsigned long maxOpenTime, unsigned long maxCloseTime);
+void testCaudal(float nominal, float tolerance, unsigned long duration);
+void monitorTemperatura(float maxTemp);
 
 // Declaraciones de funciones modulares que toman como base el inyector seleccionado
-TestResult runTestResistencia(InjectorData selected);
-TestResult runTestFugas(InjectorData selected);
-TestResult runTestSonido(InjectorData selected);
-TestResult runTestCorriente(InjectorData selected);
-TestResult runTestTiempoRespuesta(InjectorData selected);
-TestResult runTestCaudal(InjectorData selected);
-TestResult runTestTemperatura(InjectorData selected);
+void runTestResistencia();
+void runTestFugas();
+void runTestSonido();
+void runTestCorriente();
+void runTestTiempoRespuesta();
+void runTestCaudal();
+void runTestTemperatura();
 
 // Funciones para ejecutar las pruebas en modo manual y automático.
-void runTestsManual(InjectorData selected);
-void runTestsAutomatic(InjectorData selected);
 void setupbit();
 void updateBuzzer();
 void beep();

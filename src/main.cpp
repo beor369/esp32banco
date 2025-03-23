@@ -59,8 +59,6 @@ void setup()
   Serial.begin(115200);
   //Serial2.begin(115200, SERIAL_8N1, UART_CAM_RX, UART_CAM_TX);
   EEPROM.begin(EEPROM_SIZE);
-  pinMode(pinraro, INPUT_PULLUP);
-  digitalWrite(pinraro,LOW);
   initDisplay();
   setupEncoder();
   mostrarMenu(); // Muestra el menú inicial
@@ -87,7 +85,8 @@ void loop()
   // sensor.update();
   inyector.update(); // Actualiza el estado (no bloqueante)
   updateBuzzer();
-  displayEncoderPosition();
+  displayEncoderPosition(mostrarMenu, actualizarIndice, manejarEstado);
+
   // Serial.print("C = "); 
   // Serial.println(thermocouple.readCelsius());
   // Serial.print("F = ");

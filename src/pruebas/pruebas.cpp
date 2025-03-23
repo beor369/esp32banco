@@ -1,6 +1,7 @@
 #include "pruebas.h"
 #include <Arduino.h>
 #include "saveInjector/saveInjector.h"
+#include "ultrasonicsensor/ultrasonic_sensor.h"
 #include "GlobalVarials/GlobalVarials.h"
 #include "Menu/Menu.h"
 #include "config.h"
@@ -24,101 +25,100 @@ std::map<std::string, TestResult> resultadosTests;
 // -----------------------------------------------------------------------------
 
 // 1. Prueba de Resistencia Eléctrica
-TestResult testResistencia(float nominal, float tolerance)
+void testResistencia()
 {
-  TestResult result;
-  // Simula lectura de ADC y cálculo de resistencia
-  float measuredResistance = nominal + random(-2, 3); // Ejemplo: valor medido
-  result.measuredValue = measuredResistance;
-  float lower = nominal * (1.0 - tolerance);
-  float upper = nominal * (1.0 + tolerance);
-  result.passed = (measuredResistance >= lower && measuredResistance <= upper);
-  delay(10000);
-  estadoActual = SUBMENU_MANUAL;
+  // TestResult result;
+  // // Simula lectura de ADC y cálculo de resistencia
+  // float measuredResistance = nominal + random(-2, 3); // Ejemplo: valor medido
+  // result.measuredValue = measuredResistance;
+  // float lower = nominal * (1.0 - tolerance);
+  // float upper = nominal * (1.0 + tolerance);
+  // result.passed = (measuredResistance >= lower && measuredResistance <= upper);
+  // delay(10000);
+  // estadoActual = SUBMENU_MANUAL;
 
-  resultadosTests["Resistencia"] = result;
-  return result;
+  // resultadosTests["Resistencia"] = result;
+  // return result;
 }
 
 // 2. Prueba de Fugas en Reposo
-TestResult testFugas(float maxFlow)
+void testFugas()
 {
-  TestResult result;
-  // // Obtiene los valores calculados
-  // float flow = sensor.getFlowRate();
-  // float filteredFlow = sensor.getFilteredFlow();
-  // if (sensor.isLeakDetected())
-  // {
-  //   Serial.println("  ¡Fuga detectada!");
-  //   result.passed = false;
-  // }
-  // else
-  // {
-  //   result.passed = true;
-  //   Serial.println("  No se detecta fuga.");
-  // }
-  // Simula la medición de flujo en cc/min
-  // float measuredFlow = maxFlow - 0.05; // Ejemplo
-  // result.measuredValue = measuredFlow;
-  // result.passed = (measuredFlow < maxFlow);
-  return result;
+    //se llama para evaluar el valor medido
+    float distance= ultrasonic_sensor.get_distance_fashion(20, false);
+    TestResult results;
+    results.expectedValue = distance;
+    results.measuredValue= ultrasonic_sensor.distaceFashion;
+    if (ultrasonic_sensor.distaceFashion == distance)
+    {
+      results.passed=true;
+    }else
+    {
+      results.passed=false;
+    }
 
-  // Serial.print("Caudal: ");
-  // Serial.print(flow);
-  // Serial.print(" L/min - Filtrado: ");
-  // Serial.print(filteredFlow);
+    resultadosTests["fugas"]=results;
+  
+
 }
 
 // 3. Prueba de Sonido de Activación
-TestResult testSonido(float threshold)
+void testSonido()
 {
-  TestResult result;
-  // Simula lectura de ADC del micrófono
-  // inyector.activate(50.0, 2500, 5);
-  int adcVal = analogRead(PIN_SONIDO); // Lee el valor ADC del sensor
-  result.measuredValue = adcVal;
-  result.passed = (adcVal >= threshold);
-  return result;
+  // TestResult result;
+  // // Simula lectura de ADC del micrófono
+  // // inyector.activate(50.0, 2500, 5);
+  // int adcVal = analogRead(PIN_SONIDO); // Lee el valor ADC del sensor
+  // result.measuredValue = adcVal;
+  // result.passed = (adcVal >= threshold);
+  // return result;
 }
 
 // 4. Prueba de Corriente de Activación
-TestResult testCorriente(float nominal, float minVal, float maxVal, unsigned long sampleDuration)
+void testCorriente(float nominal, float minVal, float maxVal, unsigned long sampleDuration)
 {
   TestResult result;
   // Simula la medición de corriente (en A)
   float measuredCurrent = nominal; // Ejemplo
   result.measuredValue = measuredCurrent;
   result.passed = (measuredCurrent >= minVal && measuredCurrent <= maxVal);
-  return result;
 }
 
 // 5. Prueba de Tiempo de Respuesta
-TestResult testTiempoRespuesta(unsigned long maxOpenTime, unsigned long maxCloseTime)
+void testTiempoRespuesta(unsigned long maxOpenTime, unsigned long maxCloseTime)
 {
   TestResult result;
   // Simula la medición del tiempo de activación (en ms)
   unsigned long measuredTime = maxOpenTime - 1; // Ejemplo
   result.measuredValue = measuredTime;
   result.passed = (measuredTime < maxOpenTime);
-  return result;
+  // return result;
 }
 
 // 6. Prueba de Caudal de Combustible
-TestResult testCaudal(float nominal, float tolerance, unsigned long duration)
+void testCaudal(float nominal, float tolerance, unsigned long duration)
 {
   TestResult result;
   // Simula el cálculo de caudal en cc/min
   float measuredFlow = nominal; // Ejemplo
   result.measuredValue = measuredFlow;
+
   float lower = nominal * (1.0 - tolerance);
   float upper = nominal * (1.0 + tolerance);
   result.passed = (measuredFlow >= lower && measuredFlow <= upper);
+
+
+
+
   resultadosTests["Temperatura"] = result;
-  return result;
+  // resultadosTests["Temperatura"].expectedValue;
+  // resultadosTests["Temperatura"].measuredValue;
+  // resultadosTests["Temperatura"].passed;
+  // return result;
 }
 
 // 7. Monitoreo de Temperatura
-TestResult monitorTemperatura(float maxTemp)
+void monitorTemperatura(float maxTemp)
 {
   char outputi[50];
   float UMBRAL_TEMP = 32.0;
@@ -151,51 +151,50 @@ TestResult monitorTemperatura(float maxTemp)
   // float measuredTemp = maxTemp - 5; // Ejemplo
   // result.measuredValue = measuredTemp;
   // result.passed = (measuredTemp < maxTemp);
-  resultadosTests["Caudal"] = result;
-  return result;
+  resultadosTests["temperatura"] = result;
 }
 
 // -----------------------------------------------------------------------------
 // Funciones modulares que usan los datos del inyector seleccionado como base.
 // -----------------------------------------------------------------------------
 
-TestResult runTestResistencia(InjectorData selected)
+void runTestResistencia()
 {
-  return testResistencia(selected.resistencia, 0.10); // ±10%
+  return testResistencia(); // ±10%
 }
 
-TestResult runTestFugas(InjectorData selected)
+void runTestFugas()
 {
-  return testFugas(selected.fugas); // Se asume que selected.fugas define el umbral
+  testFugas(); // Se asume que selected.fugas define el umbral
 }
 
-TestResult runTestSonido(InjectorData selected)
+void runTestSonido()
 {
 
-  return testSonido(selected.sonidoActivacion); // Se usa el valor ideal como umbral
+  return testSonido(); // Se usa el valor ideal como umbral
 }
 
-TestResult runTestCorriente(InjectorData selected)
+void runTestCorriente()
 {
-  float minCorr = selected.corrienteActivacion * 0.8;
-  float maxCorr = selected.corrienteActivacion * 1.2;
-  return testCorriente(selected.corrienteActivacion, minCorr, maxCorr, 100);
+  // float minCorr = selected.corrienteActivacion * 0.8;
+  // float maxCorr = selected.corrienteActivacion * 1.2;
+  // return testCorriente(selected.corrienteActivacion, minCorr, maxCorr, 100);
 }
 
-TestResult runTestTiempoRespuesta(InjectorData selected)
+void runTestTiempoRespuesta()
 {
   // Se usa el valor ideal para apertura (y cierre, para simplificar)
-  return testTiempoRespuesta(selected.tiempoRespuesta, selected.tiempoRespuesta);
+  //testTiempoRespuesta(selected.tiempoRespuesta, selected.tiempoRespuesta);
 }
 
-TestResult runTestCaudal(InjectorData selected)
+void runTestCaudal()
 {
-  return testCaudal(selected.caudal, 0.05, 60000); // tolerancia del 5%, prueba de 1 minuto
+  // return testCaudal(selected.caudal, 0.05, 60000); // tolerancia del 5%, prueba de 1 minuto
 }
 
-TestResult runTestTemperatura(InjectorData selected)
+void runTestTemperatura()
 {
-  return monitorTemperatura(80.0); // Umbral fijo de 80°C
+    monitorTemperatura(80.0); // Umbral fijo de 80°C
 }
 
 void activarBuzzer()
@@ -220,22 +219,6 @@ void mostrarResultado(const char *nombre, TestResult result)
   }
 }
 
-// se puede retornar en las variables globales
-void runTestsAutomatic(InjectorData selected)
-{
-  resultadosTests["Resistencia"] = runTestResistencia(selected);
-  resultadosTests["Fugas"] = runTestFugas(selected);   // NO BOMBA
-  resultadosTests["Sonido"] = runTestSonido(selected); // NO BOMBA
-  resultadosTests["Corriente"] = runTestCorriente(selected);
-  resultadosTests["Tiempo Resp."] = runTestTiempoRespuesta(selected);
-  resultadosTests["Caudal"] = runTestCaudal(selected);
-  resultadosTests["Temperatura"] = runTestTemperatura(selected);
-
-  for (const auto &test : resultadosTests)
-  {
-    mostrarResultado(test.first.c_str(), test.second);
-  }
-}
 
 void beep()
 {
