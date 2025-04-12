@@ -2,8 +2,8 @@
 #include <map>
 #include <vector>
 
-#define ECHO_PIN 2  
-#define TRIG_PIN 4  
+#define ECHO_PIN 4  
+#define TRIG_PIN 2  
 
 UltrasonicSensor ultrasonic_sensor(TRIG_PIN, ECHO_PIN);
 

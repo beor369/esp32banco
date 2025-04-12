@@ -51,4 +51,5 @@ extern unsigned long tiempoPruebaSec;
 extern long frecuenciaa;
 extern unsigned long anchoPulsoUss;
 extern unsigned long tiempoPruebaSecc;
+
 #endif

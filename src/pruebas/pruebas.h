@@ -32,9 +32,9 @@ struct TestResult {
 void testResistencia();
 void testFugas();
 void testSonido();
-void testCorriente(float nominal, float minVal, float maxVal, unsigned long sampleDuration);
-void testTiempoRespuesta(unsigned long maxOpenTime, unsigned long maxCloseTime);
-void testCaudal(float nominal, float tolerance, unsigned long duration);
+void testCorriente();
+void testTiempoRespuesta();
+void testCaudal();
 void monitorTemperatura(float maxTemp);
 
 // Declaraciones de funciones modulares que toman como base el inyector seleccionado

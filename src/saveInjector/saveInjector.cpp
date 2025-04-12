@@ -24,12 +24,12 @@ extern ESP32Encoder encoder;
 
 InjectorData inyectores[MAX_INJECTORES]; // Personalizados (almacenados en NVS)
 uint8_t numInyectores = 0;
-
+// res, caudal, fugas, tiempo respuesta,corriente, temperatura, sonido
 // Datos de fábrica (por defecto)
 const InjectorData defaultInyectores[NUM_DEFAULT_INJECTORES] = {
-    {"ns 200", 13.0, 5.0, 0.5, 0.8, 3.2, 80.0, 40.0},
-    {"fz 2.0", 13.0, 6.0, 0.4, 1.0, 3.0, 85.0, 40.0},
-    {"nkd", 13.0, 5.5, 0.6, 0.7, 3.5, 78.0, 40.0}};
+    {"ns 200", 13.0, 5.0, 0.5, 0.8, 0.56, 80.0, 40.0},
+    {"fz 2.0", 13.0, 6.0, 0.4, 1.0, 0.56, 85.0, 40.0},
+    {"nkd", 13.0, 5.5, 0.6, 0.7, 3.5, 0.56, 40.0}};
 
 // ====== FUNCIONES DE NVS ======
 void cargarDatos()
@@ -242,11 +242,11 @@ void handleAddInjector()
 
   // Para cada parámetro, se permite usar valor default o ingresar uno
   // Aquí se usan como referencia los valores de "ModeloA"
-  nuevo.resistencia = inputParameter("Resistencia", 10.0);
+  nuevo.resistencia = inputParameter("Resistencia", 13.0);
   nuevo.caudal = inputParameter("Caudal", 5.0);
   nuevo.fugas = inputParameter("Fugas", 0.5);
   nuevo.tiempoRespuesta = inputParameter("Tiempo Resp.", 0.8);
-  nuevo.corrienteActivacion = inputParameter("Corriente", 3.2);
+  nuevo.corrienteActivacion = inputParameter("Corriente", 0.56);
   nuevo.temperaturaOperativa = inputParameter("Temperatura", 80.0);
   nuevo.sonidoActivacion = inputParameter("Sonido", 2.5);
 

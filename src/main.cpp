@@ -55,11 +55,12 @@ unsigned long lastEncoderMoveTime = 0;
 
 void setup()
 {
-  
+  delay(50);
   Serial.begin(115200);
   //Serial2.begin(115200, SERIAL_8N1, UART_CAM_RX, UART_CAM_TX);
   EEPROM.begin(EEPROM_SIZE);
   initDisplay();
+  u8g2.enableUTF8Print();
   setupEncoder();
   mostrarMenu(); // Muestra el menú inicial
   cargarDatos();
@@ -70,14 +71,18 @@ void setup()
   ultrasonic_sensor.begin();
   // sensor.begin();
 
-  // ina219Wire.begin(8, 9);
+  ina219Wire.begin(8, 9);
+  ina219.setCalibration_16V_400mA();
 
-  // // Inicializa el sensor INA219 utilizando el bus I2C alternativo
-  // if (!ina219.begin(&ina219Wire)) {
-  //   Serial.println("No se encontró el chip INA219");
-  //   while (1) { delay(10); }
-  // }
-  // Serial.println("INA219 detectado correctamente");
+  // // Calibración personalizada
+  // uint32_t currentDivider_mA = 10; // Ajusta según tu resistencia shunt y rango de corriente
+  // ina219.setCalibration_32V_2A(); // Usa una función de calibración predefinida o personalizada
+  // Inicializa el sensor INA219 utilizando el bus I2C alternativo
+  if (!ina219.begin(&ina219Wire)) {
+    Serial.println("No se encontró el chip INA219");
+    while (1) { delay(10); }
+  }
+  Serial.println("INA219 detectado correctamente");
  }
 
 void loop()

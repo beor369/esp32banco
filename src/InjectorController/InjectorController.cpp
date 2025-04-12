@@ -79,11 +79,17 @@ void InjectorController::assess_ina() {
   Serial.print("Current:       "); Serial.print(current, 4); Serial.println(" mA");
   Serial.print("Power:         "); Serial.print(power, 4); Serial.println(" mW");
   Serial.println("");
+  // Convierte el shunt voltage de mV a V
+float v_shunt_V = shuntVoltage / 1000.0;
+// Calcula la corriente usando el valor del shunt resistor (0.1 Ω)
+float current_A = v_shunt_V / 0.1;  
+// Calcula la resistencia del inyector usando el bus voltage
+float r_inyector = v_shunt_V / current_A;
 
   // Parámetros para ajuste de la medición
-  double current_A = current / 1000;
+  // double current_A = current / 1000;
   Serial.print("current_A: "); Serial.println(current_A, 8);  // 8 decimales
-  
+  Serial.print("r_inyector: "); Serial.println(r_inyector, 8);  // 8 decimale
   double ohm= busVoltage / current_A;
 
   InjectorData inyec = globalInjector.getInjector();
@@ -91,8 +97,9 @@ void InjectorController::assess_ina() {
 
   result.expectedValue= inyec.resistencia;
   result.measuredValue= ohm;
-
-  if (inyec.resistencia > (ohm - 1) && inyec.resistencia < (ohm + 1)){
+  Serial.println(current_A, 8);  // 8 decimales
+  Serial.print(ohm,8);
+  if (inyec.resistencia > (ohm - 2) && inyec.resistencia < (ohm + 2)){
       result.passed= true;
   } else{
       result.passed= false;
