@@ -16,7 +16,7 @@ extern int indicefuncionamiento;
 extern int indiceseleccionarmoto;
 extern int indiceagregarborrarinjt;
 extern Estado estadoActual;
-
+bool automatico;
 extern U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2;
 
 // Ejemplos de arreglos de imágenes para cada menú
@@ -36,11 +36,6 @@ static const int tamanioagregarborrarinj = sizeof(agregarBorrarImagenes) / sizeo
 
 static const char *seleccionarMotoImagenes[] = {"SIGUIENTEFUNCIONAMIENTO", "VER_CARACT", "ATRASMENU"};
 static const int tamanioseleccionarmoto = sizeof(seleccionarMotoImagenes) / sizeof(seleccionarMotoImagenes[0]);
-
-
-
-
-
 
 void controlBombaDurantePrueba(unsigned long tiempoBombaEncendidaS, unsigned long tiempoBombaApagadaS, long time_injector, Callback actualizaValores, EstadoInyector estadoInyector)
 {
@@ -103,21 +98,26 @@ void controlBombaDurantePrueba(unsigned long tiempoBombaEncendidaS, unsigned lon
 
   digitalWrite(BOMBA_PIN, HIGH); // Apaga la bomba al final del ciclo
 }
-void devolver() {
+void devolver()
+{
   encoder.clearCount();
   Serial.println("Esperando pulsación de botón...");
   // Espera a que se presione el botón
-  while (digitalRead(botonPin) == LOW) {
+  while (digitalRead(botonPin) == LOW)
+  {
+    inyector.stop();
     delay(10);
   }
   Serial.println("Botón presionado, esperando liberación...");
   // Espera a que se suelte el botón
-  while (digitalRead(botonPin) == HIGH) {
+  while (digitalRead(botonPin) == HIGH)
+  {
+    inyector.stop();
     delay(100);
   }
   delay(400); // Delay para evitar rebotes
-   u8g2.clearBuffer();
-   inyector.stop();
+  u8g2.clearBuffer();
+  // inyector.stop();
   dibujarImagen(submenuManualImagenes[indiceSubSubMenu]);
   estadoActual = SUBMENU_MANUAL;
   Serial.println("Cambio de estado a MENU_PRINCIPAL");
@@ -128,6 +128,8 @@ void setupvalues()
 
   unsigned long tolerancePercent = 10;
   TestResult results;
+
+
 }
 
 // Muestra el menú según el estado actual
@@ -143,6 +145,7 @@ void mostrarMenu()
     break;
   case MENU_SELECCION_INYECTOR:
     // beep();
+    
     handleTestInjector();
     break;
   case SELECCIONAR_RPM_TIME:
@@ -188,230 +191,133 @@ void mostrarMenu()
     break;
   case SUBMENU_MID_RES:
 
-    {
-    
-    controlBombaDurantePrueba(3, 10, 12000, runTestResistencia, estate_inyector::ACTIVA_INYECTOR_SIN_REVOLUCION);
+  {
+    // beep();
     u8g2.clearBuffer();
     u8g2.setFont(u8g2_font_6x12_tf);
-    // Convertir valores a string antes de pasarlos a drawStr()
-    std::string measuredValueStr = std::to_string(resultadosTests["Resistencia"].measuredValue);
-    std::string passedStr = resultadosTests["Resistencia"].passed ? "PASSED" : "FAILED";
-    Serial.print("imprimir measuredvalue antes de conversion:   "); Serial.print(resultadosTests["Resistencia"].measuredValue); Serial.println(" ohm");
-    // Dibujar títulos y etiquetas
     u8g2.drawStr(0, 10, "Prueba de resistencia");
-    u8g2.drawStr(0, 64, "Pres boton salir");
-    const char *label = "Resistencia:";
-    const char *estadoLabel = "Estado:";
-    int labelWidth = u8g2.getStrWidth(label);
-    int estadoWidth = u8g2.getStrWidth(estadoLabel);
-    int espacio = 5;
-    int variableX = labelWidth + espacio;
-    int valorX = estadoWidth + espacio;
-    // Dibujar las etiquetas y sus valores
-    u8g2.drawStr(0, 25, label);
-    u8g2.drawStr(variableX, 25, measuredValueStr.c_str());
-    u8g2.drawStr(0, 45, estadoLabel);
-    u8g2.drawStr(valorX, 45, passedStr.c_str());
     u8g2.sendBuffer();
-    devolver();
-    
+    runTestResistencia();
+
+    if (automatico) {
+      estadoActual = SUBMENU_FUGAS;   
+    } else {
+      devolver(); 
+    }                    
     break;
-    }
+       }
+  
   case SUBMENU_FUGAS:
   { // Test de Fugas
-    Serial.println(ultrasonic_sensor.getDistance());
-    ultrasonic_sensor.get_distance_fashion(20, true);
-    Serial.println("activamos la bomba");
-    controlBombaDurantePrueba(1, 18, 12000, [](){ Callback(); }, estate_inyector::INJECTOR_MIN);
-    u8g2.clearBuffer();
-    testFugas();
+    // beep();
     u8g2.clearBuffer();
     u8g2.setFont(u8g2_font_6x12_tf);
-    // Convertir valores a string antes de pasarlos a drawStr()
-    std::string measuredValueStr = std::to_string(resultadosTests["fugas"].measuredValue);
-    std::string passedStr = resultadosTests["fugas"].passed ? "PASSED" : "FAILED";
-    // Dibujar títulos y etiquetas
     u8g2.drawStr(0, 10, "Prueba de fugas");
-    u8g2.drawStr(0, 64, "Pres boton salir");
-    const char *label = "fugas:";
-    const char *estadoLabel = "Estado:";
-    int labelWidth = u8g2.getStrWidth(label);
-    int estadoWidth = u8g2.getStrWidth(estadoLabel);
-    int espacio = 5;
-    int variableX = labelWidth + espacio;
-    int valorX = estadoWidth + espacio;
-    // Dibujar las etiquetas y sus valores
-    u8g2.drawStr(0, 25, label);
-    u8g2.drawStr(variableX, 25, measuredValueStr.c_str());
-    u8g2.drawStr(0, 45, estadoLabel);
-    u8g2.drawStr(valorX, 45, passedStr.c_str());
     u8g2.sendBuffer();
-    Serial.println("desalojamos liquido");
-    controlBombaDurantePrueba(0, 0, 20, [](){ Callback(); }, estate_inyector::ACTIVA_INYECTOR_SIN_REVOLUCION);
-    devolver();
-
+    runTestFugas();
+    Serial.println(automatico);
+    if (automatico) {
+      estadoActual = SUBMENU_CLICK;   // avanza al siguiente
+    } else {
+      devolver();                     // modo manual: vuelves al menú
+    }
     break;
   }
   case SUBMENU_CLICK:
 
-    // inyector.activate(50.0, 2500, 5);
-
-    // while (!(inyector.isActive && (millis() - inyector.startTime >= inyector.testDurationMs)))
-    // {
-    //   char output[50];
-    //   u8g2.clearBuffer();
-    //   Serial.println("SUBMENU CLICK");
-    //   // pruebaClic();
-
-    //   runTestSonido();
-    //   // sprintf(output, "Sonido: %.2f %s", result.measuredValue, result.passed ? "OK" : "FALLA");
-    //   u8g2.clearBuffer();
-    //   u8g2.drawStr(0, 12, output);
-    //   u8g2.sendBuffer();
-    // }
-
-    // estadoActual = SUBMENU_MANUAL;
-    controlBombaDurantePrueba(3, 20, 12000, runTestSonido, estate_inyector::ACTIVA_INYECTOR_CON_REVOLUCION);
     u8g2.clearBuffer();
     u8g2.setFont(u8g2_font_6x12_tf);
+    u8g2.drawStr(0, 10, "Prueba de Sonido");
+    u8g2.sendBuffer();
+    runTestSonido();
+    if (automatico) {
+      estadoActual = SUBMENU_CORRIENTE_ACTIVACION;   // avanza al siguiente
+    } else {
+      devolver();                     // modo manual: vuelves al menú
+    }
     break;
   case SUBMENU_CORRIENTE_ACTIVACION:
   {
-    
-    controlBombaDurantePrueba(3, 10, 8000, runTestCorriente, estate_inyector::ACTIVA_INYECTOR_SIN_REVOLUCION);
     u8g2.clearBuffer();
     u8g2.setFont(u8g2_font_6x12_tf);
-    // Convertir valores a string antes de pasarlos a drawStr()
-    std::string measuredValueStr = std::to_string(resultadosTests["corrienteActivacion"].measuredValue);
-    std::string passedStr = resultadosTests["corrienteActivacion"].passed ? "PASSED" : "FAILED";
-    Serial.print("imprimir measuredvalue antes de conversion:   "); Serial.print(resultadosTests["corrienteActivacion"].measuredValue); Serial.println(" mA");
-    // Dibujar títulos y etiquetas
-    u8g2.drawStr(0, 10, "Prueba de corriente");
-    u8g2.drawStr(0, 64, "Pres boton salir");
-    const char *label = "Corriente:";
-    const char *estadoLabel = "Estado:";
-    int labelWidth = u8g2.getStrWidth(label);
-    int estadoWidth = u8g2.getStrWidth(estadoLabel);
-    int espacio = 5;
-    int variableX = labelWidth + espacio;
-    int valorX = estadoWidth + espacio;
-    // Dibujar las etiquetas y sus valores
-    u8g2.drawStr(0, 25, label);
-    u8g2.drawStr(variableX, 25, measuredValueStr.c_str());
-    u8g2.drawStr(0, 45, estadoLabel);
-    u8g2.drawStr(valorX, 45, passedStr.c_str());
+    u8g2.drawStr(0, 10, "Prueba corrte de activacion");
     u8g2.sendBuffer();
-    devolver();
-    
-    break;
+    delay(10);
+    runTestCorriente();
+    if (automatico) {
+      estadoActual = SUBMENU_TIEMPO_RESPUESTA;   // avanza al siguiente
+    } else {
+      devolver();                     // modo manual: vuelves al menú
     }
+
+    break;
+  }
   case SUBMENU_TIEMPO_RESPUESTA:
   {
-    // controlBombaDurantePrueba(0, 0, 100, runTestTiempoRespuesta, estate_inyector::ACTIVA_INYECTOR_SIN_REVOLUCION);
-     runTestTiempoRespuesta();
-    // devolver();
-    // inyector.rpmValue_tem = 0;
-    // controlBombaDurantePrueba(3, 10, 12000, setupvalues, estate_inyector::ACTIVA_INYECTOR_CON_REVOLUCION);
-    // // float vol = ultrasonic_sensor.cycles_get_distance(30);
-    // Serial.println("///////////////los resultados de la prueba////////////");
-    // // Serial.println(vol);
-    // Serial.println(resultadosTests["Caudal"].measuredValue);
-    // Serial.println("////////////////////////////////////////////");
-    // digitalWrite(BOMBA_PIN, LOW);
-    // inyector.activarInyectorDesdeEncoder();
 
-    // while (!(inyector.isActive && (millis() - inyector.startTime >= inyector.testDurationMs)))
-    // {
-    //   setupvalues();
-    // }
-
-    // digitalWrite(BOMBA_PIN, HIGH);
-    estadoActual = SUBMENU_MANUAL;
+    // u8g2.clearBuffer();
+    u8g2.setFont(u8g2_font_6x12_tf);
+    u8g2.drawStr(0, 10, "Prueba tmpo respuesta");
+    u8g2.sendBuffer();
+    delay(10);
+    runTestTiempoRespuesta();
+    if (automatico) {
+      estadoActual = SUBMENU_FLUJO;   // avanza al siguiente
+    } else {
+      devolver();                     // modo manual: vuelves al menú
+    }
     break;
   }
   case SUBMENU_FLUJO:
   {
-    runTestCaudal();
-    // inyector.rpmValue_tem = 0;
-    // controlBombaDurantePrueba(3, 10, testTimeValue, setupvalues, estate_inyector::ACTIVA_INYECTOR_CON_REVOLUCION);
-    // float vol = ultrasonic_sensor.cycles_get_distance(30);
-    Serial.println("///////////////los resultados de la prueba////////////");
-    // Serial.println(vol);
-    Serial.println(resultadosTests["caudal"].measuredValue);
-    Serial.println("////////////////////////////////////////////");
-    u8g2.setFont(u8g2_font_6x12_tf);
-    // Convertir valores a string antes de pasarlos a drawStr()
-    std::string measuredValueStr = std::to_string(resultadosTests["caudal"].measuredValue);
-    std::string passedStr = resultadosTests["temperatura"].passed ? "PASSED" : "FAILED";
-    // Dibujar títulos y etiquetas
     u8g2.clearBuffer();
-    u8g2.drawStr(0, 10, "Prueba de flujo");
-    u8g2.drawStr(0, 64, "Pres boton salir");
-    const char *label = "flujo:";
-    const char *estadoLabel = "Estado:";
-    int labelWidth = u8g2.getStrWidth(label);
-    int estadoWidth = u8g2.getStrWidth(estadoLabel);
-    int espacio = 5;
-    int variableX = labelWidth + espacio;
-    int valorX = estadoWidth + espacio;
-    // Dibujar las etiquetas y sus valores
-    u8g2.drawStr(0, 25, label);
-    u8g2.drawStr(variableX, 25, measuredValueStr.c_str());
-    u8g2.drawStr(0, 45, estadoLabel);
-    u8g2.drawStr(valorX, 45, passedStr.c_str());
+    u8g2.setFont(u8g2_font_6x12_tf);
+    u8g2.drawStr(0, 10, "Prueba de caudal");
     u8g2.sendBuffer();
-    devolver();
-    
+    delay(10);
+    runTestCaudal();
+    if (automatico) {
+      estadoActual = SUBMENU_TEMPERATURA;   // avanza al siguiente
+    } else {
+      devolver();                     // modo manual: vuelves al menú
+    }
+
     break;
   }
   case SUBMENU_TEMPERATURA:
   {
-    inyector.rpmValue_tem = 6500;
-  controlBombaDurantePrueba(3, 10, 12000, runTestTemperatura, estate_inyector::ACTIVA_INYECTOR_CON_REVOLUCION);
-  u8g2.clearBuffer();
-  u8g2.setFont(u8g2_font_6x12_tf);
-  // Convertir valores a string antes de pasarlos a drawStr()
-  std::string measuredValueStr = std::to_string(resultadosTests["temperatura"].measuredValue);
-  std::string passedStr = resultadosTests["temperatura"].passed ? "PASSED" : "FAILED";
- 
-  // Serial.print("imprimir measuredvalue despues de conversion:   "); Serial.print(measuredValueStr); Serial.println(" V");
-  // Dibujar títulos y etiquetas
-  u8g2.drawStr(0, 10, "Prueba de temperatura");
-  u8g2.drawStr(0, 64, "Pres boton salir");
-  const char *label = "Temperatura:";
-  const char *estadoLabel = "Estado:";
-  int labelWidth = u8g2.getStrWidth(label);
-  int estadoWidth = u8g2.getStrWidth(estadoLabel);
-  int espacio = 5;
-  int variableX = labelWidth + espacio;
-  int valorX = estadoWidth + espacio;
-  // Dibujar las etiquetas y sus valores
-  u8g2.drawStr(0, 25, label);
-  u8g2.drawStr(variableX, 25, measuredValueStr.c_str());
-  u8g2.drawStr(0, 45, estadoLabel);
-  u8g2.drawStr(valorX, 45, passedStr.c_str());
-  u8g2.sendBuffer();
-  devolver();
-  
-  break;
+    u8g2.clearBuffer();
+    u8g2.setFont(u8g2_font_6x12_tf);
+    u8g2.drawStr(0, 10, "Prueba temperatura");
+    u8g2.sendBuffer();
+    delay(10);
+    runTestTemperatura();
+    if (automatico) {
+      estadoActual = SUBMENU_RESULTADOS;
+    } else {
+      devolver();
+    }
+    break; 
   }
   case SUBMENU_RESULTADOS:
-
+  {
+    delay (200);
+    u8g2.clearBuffer();
+    automatico = false;   // desactivamos el modo automático
+    mostrarResultadosFinales();
+    mostrarSoluciones();
+       
     break;
+  }
+ 
   case ATRASITO:
-
+    estadoActual = SUBMENU_FUNCIONAMIENTO;
     break;
 
   case AYUDA:
-    //  // Prueba 3: 2 Hz, 1000 µs (umbral crítico)
 
-    // delay(10000);
-    // delay(10000);
-    // Detener manualmente:
-    // inyector.stop();
-    // mostrarAyuda();
     mostrarAyuda();
-
+    estadoActual = MENU_PRINCIPAL;
     break;
   default:
     break;
@@ -426,6 +332,7 @@ void manejarEstado()
   case MENU_PRINCIPAL:
     if (indiceMenu == 0)
     {
+     
       estadoActual = MENU_SELECCION_INYECTOR;
     }
     else if (indiceMenu == 1)
@@ -465,6 +372,7 @@ void manejarEstado()
 
     break;
   case SELECCIONAR_MOTO:
+    // delay(50);
     if (indiceseleccionarmoto == 0)
     {
       estadoActual = SUBMENU_FUNCIONAMIENTO;
@@ -475,10 +383,16 @@ void manejarEstado()
     }
     else if (indiceseleccionarmoto == 2)
     {
+      // lastEncoderMoveTime = 0;
+      // encoder.clearCount();
+      // delay(500);
       estadoActual = MENU_PRINCIPAL;
     }
     break;
   case SUBMENU_FUNCIONAMIENTO:
+    automatico = false;
+    Serial.print("  automatico=");
+    Serial.println(automatico);
     if (indicefuncionamiento == 0)
     {
       estadoActual = SUBMENU_MANUAL;
@@ -527,10 +441,19 @@ void manejarEstado()
     }
     else if (indiceSubSubMenu == 8)
     {
-      estadoActual = ATRASITO;
+      // lastEncoderMoveTime = 0;
+      // encoder.clearCount();
+      // delay(500);
+      estadoActual = SUBMENU_FUNCIONAMIENTO;
     }
     break;
-  // Agrega más casos según lo requiera tu lógica
+    case SUBMENU_AUTOMATICO :
+    {
+      // runAllTests();
+      automatico    = true;
+      estadoActual = SUBMENU_MID_RES; 
+    }
+    break;
   default:
     break;
   }

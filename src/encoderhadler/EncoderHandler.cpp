@@ -21,13 +21,13 @@ void displayEncoderPosition(void (*callback)(), void (*callbackindice)(bool), vo
   int valorEncoder = encoder.getCount();
   if (millis() - lastEncoderMoveTime > encoderMoveDelay) {
     if (valorEncoder > 0) {
-      delay(50);
+      delay(10);
       callbackindice(true);
       encoder.clearCount();
       callback();
       lastEncoderMoveTime = millis();
     } else if (valorEncoder < 0) {
-      delay(50);
+      delay(10);
       callbackindice(false);
       encoder.clearCount();
       callback();
@@ -35,11 +35,11 @@ void displayEncoderPosition(void (*callback)(), void (*callbackindice)(bool), vo
     }
 
     if (digitalRead(botonPin) == LOW) {
-      delay(100);  
+      delay(50);  
       if (digitalRead(botonPin) == LOW) {
         callback_manejar_estado();
         callback();   
-        delay(300);
+        delay(100);
       }
     }
   }

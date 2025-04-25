@@ -21,4 +21,5 @@ extern State currentState;
 extern long rpmValue ;       // Base 1000 RPM
 extern long pulseWidthValue;  // Base 10 ms
 extern long testTimeValue; // Base 10,000 ms (10 s)
+extern unsigned long lastButtonPress;
 #endif  

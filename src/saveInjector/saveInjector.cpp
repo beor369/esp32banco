@@ -59,19 +59,20 @@ void waitForButtonPress()
   encoder.clearCount();
   while (digitalRead(botonPin) == HIGH)
   {
-    delay(10);
+   
+    delay(50);
   }
   // Espera a soltar el botón
   while (digitalRead(botonPin) == LOW)
   {
-    delay(10);
+    delay(50);
   }
   delay(200); // delay para evitar rebotes
 }
 
 // Muestra un menú con opciones y permite seleccionar mediante encoder
-// int lastEncoderPosition = encoder.getCount();
-// bool seleccionando = true;
+ int lastEncoderPosition = encoder.getCount();
+ bool seleccionando = true;
 int selectMenuOption(const char *title, const char *options[], int numOptions)
 {
   long encoderPos = 0;
@@ -86,6 +87,7 @@ int selectMenuOption(const char *title, const char *options[], int numOptions)
     long newPos = encoder.getCount();
     if (newPos != encoderPos)
     {
+      playMoveSound();  
       encoderPos = newPos;
       selected = (int)(encoderPos % numOptions);
       if (selected < 0)
@@ -95,6 +97,7 @@ int selectMenuOption(const char *title, const char *options[], int numOptions)
       if (selected < offset)
       {
         offset = selected;
+        
       }
       if (selected >= offset + maxRows)
       {
@@ -119,6 +122,7 @@ int selectMenuOption(const char *title, const char *options[], int numOptions)
         if (idx == selected)
         {
           u8g2.drawStr(0, y, ">");
+         
         }
         u8g2.drawStr(10, y, options[idx]);
       }
@@ -127,6 +131,7 @@ int selectMenuOption(const char *title, const char *options[], int numOptions)
     // Si se presiona el botón, retorna la opción seleccionada
     if (digitalRead(botonPin) == LOW)
     {
+      playClickSound();
       waitForButtonPress();
       return selected;
     }
@@ -170,6 +175,7 @@ float getFloatInput(const char *prompt, float initial, float step, float minVal,
     // Si se presiona el botón, confirma y retorna el valor
     if (digitalRead(botonPin) == LOW)
     {
+      playClickSound();
       waitForButtonPress();
       return value;
     }
@@ -225,6 +231,7 @@ String inputModelo()
   if (modelo.length() == 0)
   {
     modelo = "ModeloDefault";
+
   }
   return modelo;
 }
@@ -247,7 +254,7 @@ void handleAddInjector()
   nuevo.fugas = inputParameter("Fugas", 0.5);
   nuevo.tiempoRespuesta = inputParameter("Tiempo Resp.", 0.8);
   nuevo.corrienteActivacion = inputParameter("Corriente", 0.56);
-  nuevo.temperaturaOperativa = inputParameter("Temperatura", 80.0);
+  nuevo.temperaturaOperativa = inputParameter("Temperatura", 30.0);
   nuevo.sonidoActivacion = inputParameter("Sonido", 2.5);
 
   if (numInyectores < MAX_INJECTORES)
@@ -256,6 +263,8 @@ void handleAddInjector()
     numInyectores++;
     guardarDatos();
     showMessage("Inyector agregado", 1500);
+    playResultsSound();
+
   }
   else
   {

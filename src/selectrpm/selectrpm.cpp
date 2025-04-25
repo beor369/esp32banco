@@ -148,11 +148,13 @@ void displayEncoderPositionRPM()
 
   if (valorEncoder > 0)
   {
+    playMoveSound();  
     actualizarIndic(true); // Función definida en Menu.cpp
     encoder.clearCount();
   }
   else if (valorEncoder < 0)
   {
+    playMoveSound();  
     actualizarIndic(false);
     encoder.clearCount();
   }
@@ -166,28 +168,34 @@ void checkEncoderButton()
   if (millis() - lastButtonPress > debounceDelay)
   {
     if (digitalRead(botonPin) == LOW)
-    { // 'botonPin' debe estar definido globalmente
+    { 
+
       lastButtonPress = millis();
       // Cambia el estado según el parámetro actual
 
       switch (currentState)
       {
       case SELECT_RPM:
+      playClickSound(); 
         currentState = SELECT_PULSE;
         encoder.clearCount();
         break;
       case SELECT_PULSE:
+      playClickSound(); 
         currentState = SELECT_TIME;
         encoder.clearCount();
         break;
       case SELECT_TIME:
+      playClickSound(); 
         estadoActual = SELECCIONAR_MOTO;
+        encoder.clearCount();
         break;
       default:
         break;
       }
+      
       displayMenu();
-      delay(100); // Pequeña pausa para evitar rebotes
+      delay(200); // Pequeña pausa para evitar rebotes
     }
   }
 }
@@ -224,5 +232,5 @@ void loopselectrpm()
   displayMenu();
 
   encoder.clearCount();
-  delay(100); // Pequeña pausa para no saturar la CPU
+  delay(50); // Pequeña pausa para no saturar la CPU
 }

@@ -100,8 +100,10 @@ void redrawAyudaMenu() {
   // Ajustar el desplazamiento cuando la opción seleccionada está fuera del rango visible
   if (ayudaSelectedOption < scrollOffset) {
     scrollOffset = ayudaSelectedOption;
+  
   } else if (ayudaSelectedOption >= scrollOffset + maxLines) {
     scrollOffset = ayudaSelectedOption - maxLines + 1;
+  
   }
 
   // Dibujar solo las opciones visibles en pantalla
@@ -134,6 +136,7 @@ void mostrarAyuda() {
   redrawAyudaMenu(); // Dibuja el menú inicial
 
   while (!ayudaExitHelp) {
+    
     displayEncoderPosition(redrawAyudaMenu, actualizarIndice_help, manejarEstadoAyuda);
     delay(10); // Pequeña pausa para evitar sobrecarga
   }

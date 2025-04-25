@@ -14,12 +14,11 @@
 #include <max6675.h>
 #include <Adafruit_INA219.h>
 #include "pruebas/pruebas.h"
+#include "Notes.h"
 // Define los pines que se utilizarán (ajusta según tu conexión)
 // #define PIN_CLK 45    // Pin de reloj SPI
 // #define PIN_CS  3   // Pin de selección (Chip Select)
 // #define PIN_DO  8    // Pin de datos (MISO)
-
-
 
 
 // Crea la instancia del objeto MAX6675
@@ -40,6 +39,7 @@ Adafruit_INA219 ina219(0x40);
 
 
 
+
 // Variables globales de estado (puedes inicializarlas aquí)
 Estado estadoActual = MENU_PRINCIPAL;
 int indiceMenu = 0;
@@ -51,11 +51,12 @@ int indiceseleccionarmoto = 0;
 int indiceMotoSeleccionada = 0;
 int indiceagregarborrarinjt = 0;
 unsigned long lastEncoderMoveTime = 0;
-
-
+// función genérica que atacha, suena, y libera el buzzer
 void setup()
 {
-  delay(50);
+ // configura canal 1: frecuencia inicial neutra (1 kHz), resolución 8 bits
+ ledcSetup(BUZZER_CHAN, 1000, PWM_RESOLUTION);
+
   Serial.begin(115200);
   //Serial2.begin(115200, SERIAL_8N1, UART_CAM_RX, UART_CAM_TX);
   EEPROM.begin(EEPROM_SIZE);
@@ -64,7 +65,7 @@ void setup()
   setupEncoder();
   mostrarMenu(); // Muestra el menú inicial
   cargarDatos();
-  setupbit(); 
+  // setupbit(); 
   setupmic(); 
   setupselectrpm();
   inyector.begin();
@@ -85,21 +86,123 @@ void setup()
   Serial.println("INA219 detectado correctamente");
  }
 
-void loop()
-{
-  // sensor.update();
+// ——— Variables globales para timing ———
+// unsigned long lastEncoderMoveTime = 0;
+// unsigned long lastButtonPress     = 0;
+unsigned long lastScreenDraw      = 0;
+
+// const unsigned long encoderMoveDelay = 100; // ms para debounce de giro
+const unsigned long buttonDebounce   = 50;  // ms para rebote de botón
+const unsigned long idlePeriod       = 500; // ms sin mover → refresco
+const unsigned long drawPeriod       = 200; // ms mínimos entre redraws
+
+// Dentro de file-scope (antes de setup)
+static int          btnRawState       = HIGH;     // última lectura cruda
+static int          btnStableState    = HIGH;     // estado filtrado
+static unsigned long btnLastChangeTime = 0;       // cuando cambió btnRawState
+static bool         btnClickEvent     = false;    // marca un clic nuevo
+
+// Debounce en ms
+//const unsigned long buttonDebounce = 50;  // ajusta entre 20–100 según tu botón
+// ——— 1) Solo encoder: actualiza índice o estado pero NO dibuja ———
+// Esto corre siempre en loop(), antes o después de processEncoderInput
+void updateButton() {
+  int reading = digitalRead(botonPin);
+  unsigned long now = millis();
+
+  // 1) Si cambió la lectura bruta, reinicia el timer
+  if (reading != btnRawState) {
+    btnRawState       = reading;
+    btnLastChangeTime = now;
+  }
+
+  // 2) Si ha estado estable más tiempo que el debounce, aceptamos el cambio
+  if (now - btnLastChangeTime > buttonDebounce) {
+    if (btnStableState != btnRawState) {
+      btnStableState = btnRawState;
+      // 3) Si acabamos de caer a LOW, es un nuevo clic
+      if (btnStableState == LOW) {
+        btnClickEvent = true;
+      }
+    }
+  }
+}
+
+// inicias un clic leyendo btnClickEvent y luego reseteándolo
+bool consumeClick() {
+  if (btnClickEvent) {
+    btnClickEvent = false;
+    return true;
+  }
+  return false;
+}
+
+// processEncoderInput revisitado
+void processEncoderInput(
+  void (*callbackIndice)(bool),
+  void (*callbackManejarEstado)()
+) {
+  // a) primero actualiza el botón
+  updateButton();
+
+  // b) procesar giro idéntico a antes
+  long cnt = encoder.getCount();
+  if (millis() - lastEncoderMoveTime > encoderMoveDelay && cnt != 0) {
+    bool incremento = cnt > 0;
+    encoder.clearCount();
+    lastEncoderMoveTime = millis();
+    callbackIndice(incremento);
+    playMoveSound();            // sonido al girar
+  }
+
+  // c) ahora procesa el clic filtrado
+  if (consumeClick()) {
+    playClickSound();           // sonido al clicar
+    callbackManejarEstado();
+  }
+}
+
+// refreshScreenIfNeeded idéntica a antes
+void refreshScreenIfNeeded(void (*callbackMostrarMenu)()) {
+  static unsigned long lastScreenDraw = 0;
+  unsigned long now = millis();
+
+  if (automatico) {
+    if (now - lastScreenDraw > drawPeriod) {
+      callbackMostrarMenu();
+      manejarEstado();
+      lastScreenDraw = now;
+    }
+    return;
+  }
+
+  // si giraste recientemente, dibuja inmediatamente
+  if (now - lastEncoderMoveTime < idlePeriod && lastScreenDraw < lastEncoderMoveTime) {
+    callbackMostrarMenu();
+    lastScreenDraw = now;
+    return;
+  }
+
+  // si llevas idle, refresca cada drawPeriod
+  if (now - lastEncoderMoveTime >= idlePeriod && now - lastScreenDraw > drawPeriod) {
+    callbackMostrarMenu();
+    lastScreenDraw = now;
+  }
+}
+
+
+
+// ——— 3) loop() simplificado ———
+void loop() {
+  // primero procesa INPUT
+  processEncoderInput(actualizarIndice, manejarEstado);
+  refreshScreenIfNeeded(mostrarMenu);
+
+  // Sensor.update();
   inyector.update(); // Actualiza el estado (no bloqueante)
-  updateBuzzer();
-  displayEncoderPosition(mostrarMenu, actualizarIndice, manejarEstado);
-
-  // Serial.print("C = "); 
-  // Serial.println(thermocouple.readCelsius());
-  // Serial.print("F = ");
-  // Serial.println(thermocouple.readFahrenheit());
-
-  // Lecturas del sensor INA219
-
-  
-// Espera 2 segundos entre lecturas
+  // updateBuzzer();
+  // luego refresca pantalla si toca
+  // delay(1000);
+  // buzzerr.noTone();
 
 }

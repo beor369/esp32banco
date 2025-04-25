@@ -25,4 +25,6 @@ void manejarEstado();
 void actualizarIndice(bool incremento);
 void controlBombaDurantePrueba(unsigned long tiempoBombaEncendidaS,unsigned long tiempoBombaApagadaS,long time_injector,Callback actualizaValores,EstadoInyector estadoInyector);
 void setupvalues();
+void devolver();
+extern bool automatico;
 #endif
