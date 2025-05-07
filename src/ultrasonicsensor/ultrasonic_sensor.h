@@ -7,9 +7,10 @@ class UltrasonicSensor {
 public:
     UltrasonicSensor(int trigPin, int echoPin);
     void begin();
-    float getDistance();
+     float getDistance();
     void printDistance();
     float get_distance_fashion(int ciclos, bool is_fashion);
+    float get_distance_fashionn(int cicloss, bool is_fashionn);
     float distaceFashion;
 
 private:
@@ -20,4 +21,4 @@ private:
 
 extern UltrasonicSensor ultrasonic_sensor;
 
-#endif // ULTRASONICSENSOR_H
+ #endif // ULTRASONICSENSOR_H

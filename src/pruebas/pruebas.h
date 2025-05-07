@@ -86,4 +86,5 @@ void playTestStartSound();
 void playTestEndSound();
 void playResultsSound();
 extern std::map<std::string, TestResult> resultadosTests;
+
 #endif  // PRUEBAS_H

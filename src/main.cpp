@@ -9,6 +9,7 @@
 #include "selectrpm/selectrpm.h"
 #include "InjectorController/InjectorController.h"
 #include <Wire.h>
+#include "SRF05.h"
 #include "ultrasonicsensor/ultrasonic_sensor.h"
 // #include "max6675.h"
 #include <max6675.h>
@@ -19,6 +20,10 @@
 // #define PIN_CLK 45    // Pin de reloj SPI
 // #define PIN_CS  3   // Pin de selección (Chip Select)
 // #define PIN_DO  8    // Pin de datos (MISO)
+// Instancia SRF05 (pinTrigger, pinEcho)
+// Instancia SRF05 (pinTrigger, pinEcho)
+// #define ECHO_PIN 4  
+// #define TRIG_PIN 2  
 
 
 // Crea la instancia del objeto MAX6675
@@ -51,12 +56,18 @@ int indiceseleccionarmoto = 0;
 int indiceMotoSeleccionada = 0;
 int indiceagregarborrarinjt = 0;
 unsigned long lastEncoderMoveTime = 0;
+// definición de los pines
+// const int trigPin = 2;
+// const int echoPin = 4;
+
+// definición del objeto global
+// SRF05 SRF(trigPin, echoPin);
 // función genérica que atacha, suena, y libera el buzzer
 void setup()
 {
  // configura canal 1: frecuencia inicial neutra (1 kHz), resolución 8 bits
  ledcSetup(BUZZER_CHAN, 1000, PWM_RESOLUTION);
-
+//  SRF.setCorrectionFactor(1.035);
   Serial.begin(115200);
   //Serial2.begin(115200, SERIAL_8N1, UART_CAM_RX, UART_CAM_TX);
   EEPROM.begin(EEPROM_SIZE);
@@ -69,7 +80,7 @@ void setup()
   setupmic(); 
   setupselectrpm();
   inyector.begin();
-  ultrasonic_sensor.begin();
+  // ultrasonic_sensor.begin();
   // sensor.begin();
 
   ina219Wire.begin(8, 9);
@@ -204,5 +215,6 @@ void loop() {
   // luego refresca pantalla si toca
   // delay(1000);
   // buzzerr.noTone();
+  
 
 }

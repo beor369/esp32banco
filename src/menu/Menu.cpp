@@ -115,10 +115,9 @@ void devolver()
     inyector.stop();
     delay(100);
   }
-  delay(400); // Delay para evitar rebotes
   u8g2.clearBuffer();
   // inyector.stop();
-  dibujarImagen(submenuManualImagenes[indiceSubSubMenu]);
+  // dibujarImagen(submenuManualImagenes[indiceSubSubMenu]);
   estadoActual = SUBMENU_MANUAL;
   Serial.println("Cambio de estado a MENU_PRINCIPAL");
 }

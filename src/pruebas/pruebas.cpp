@@ -9,13 +9,18 @@
 #include "max6675.h"
 #include <map>
 #include <string>
+#include <EEPROM.h>
+#include "SRF05.h"
+#include "InjectorController/InjectorController.h"
+ 
 
 // #define PIN_INYECTOR 4      // Control MOSFET
 // #define PIN_SONIDO 7        // Sensor de sonido
 // #define PIN_BUZZER 19       // Buzzer de feedback
 // unsigned long lastButtonPress = 0;
 const unsigned long debounceDelay = 200;
-
+// Número de muestras para moda de distancia
+const int sampleCount = 10;
 // Variables para la medición
 unsigned long pulseStartTime = 0;
 bool pulseSent = false;
@@ -42,28 +47,48 @@ bool buzzerActive;
 unsigned long buzzerStartTime;
 MAX6675 thermocouple(thermoCLK, thermoCS, thermoDO);
 std::map<std::string, TestResult> resultadosTests;
-// Parámetros del inyector para el cálculo
-float Q_inyector = 200.0; // Caudal nominal en cc/min
-int n = 4;                // Factor de inyección (ajústalo según tu motor)
+// Parámetros nominales
+// Parámetros nominales y medición
+float Q_inyector_cc_min = 144.0f;  // caudal nominal cc/min
+// Variables globales definidas en tu sketch:
+//   float frequency        → frecuencia de inyección (Hz)
+//   unsigned long pulseWidthUs → ancho de pulso (µs)
+//   float testDurationSec  → duración de la prueba (s)
 
-// Área de la probeta en cm² para convertir la diferencia de altura en volumen (V = Δh × área)
-float areaProbeta = 10.0; // Ejemplo: 10 cm²
-void GameOfThrones();
-// Función para calcular el combustible teórico (en cc) usando la fórmula adaptada a segundos:
-// Fórmula original en minutos:
-//    Combustible (cc) = ((Q * PW_ms) / 60000) * ((RPM * T_min) / n)
-// Como T_min = T_sec/60, se tiene:
-//    Combustible (cc) = ((Q * PW_ms) / 60000) * ((RPM * T_sec) / (n * 60))
-float calcularCombustible(float Q, float pulseWidth_ms, float RPM, int n, float tiempoSec)
-{
-  return ((Q * pulseWidth_ms) / 60000.0) * ((RPM * tiempoSec) / (n * 60.0));
+// Área de la probeta (cm²)
+const float areaProbeta_cm2 = 15.2f;
+
+// Calcula combustible teórico (cc) usando frecuencia en Hz:
+// combustible = (Q_cc_min/60) [cc/s] * freq_Hz [pulsos/s] * pulseWidth_us/1e6 [s] * testDuration_s [s]
+float calcularCombustible(
+  float Q_cc_min,
+  float freq_Hz,
+  float pulseWidth_us,
+  float testTime_s
+) {
+  float Q_cc_s      = Q_cc_min / 60.0f;        // cc/s
+  float pulseTime_s = pulseWidth_us / 1e6f;    // µs → s
+  return Q_cc_s * freq_Hz * pulseTime_s * testTime_s;
 }
+// float calcularCombustible(float QccMin, float freqHz, float pulseWidthUs, float durationSec) {
+//   if (QccMin <= 0 || freqHz <= 0 || pulseWidthUs <= 0 || durationSec <= 0) return 0.0f;
+
+//   // Ejemplo de fórmula:
+//   float pulsosTotales = freqHz * durationSec;
+//   float dutyCycle = pulseWidthUs / 1000000.0f * freqHz;  // ciclo útil como fracción
+//   float flujoPorPulso = QccMin / 60.0f / freqHz;         // cc por pulso ideal
+
+//   return flujoPorPulso * pulsosTotales;
+// }
+
 // IMPLEMENTACIÓN DE LAS PRUEBAS (estas funciones pueden basarse en lecturas ADC, etc.)
 // Los siguientes ejemplos son esquemáticos y deberán ajustarse según tus sensores y calibración.
-//sonidos
+// sonidos
 
-void playTone(int freq, int duration) {
-  if (freq <= 0) {
+void playTone(int freq, int duration)
+{
+  if (freq <= 0)
+  {
     delay(duration);
     return;
   }
@@ -78,44 +103,49 @@ void playTone(int freq, int duration) {
   pinMode(BUZZER_PIN, INPUT);
 }
 // sonido breve para desplazamiento
-void playMoveSound() {
-  playTone( 800,  50);
+void playMoveSound()
+{
+  playTone(800, 50);
 }
 
 // sonido para clic
-void playClickSound() {
+void playClickSound()
+{
   playTone(1200, 100);
 }
 
 // la melodía de GOT
 static const int melody[] = {
-  NOTE_G4, NOTE_C5, NOTE_DS5, NOTE_F5, NOTE_G5,
-  NOTE_G4, NOTE_C5, NOTE_DS5, NOTE_F5, NOTE_G5,
-  NOTE_G4, NOTE_C5, NOTE_DS5, NOTE_F5, NOTE_G5,
-  NOTE_F5, NOTE_G5, NOTE_AS5, NOTE_A5, NOTE_G5,
-  NOTE_F5, NOTE_G4,     0, NOTE_G4, NOTE_C5
-};
+    NOTE_G4, NOTE_C5, NOTE_DS5, NOTE_F5, NOTE_G5,
+    NOTE_G4, NOTE_C5, NOTE_DS5, NOTE_F5, NOTE_G5,
+    NOTE_G4, NOTE_C5, NOTE_DS5, NOTE_F5, NOTE_G5,
+    NOTE_F5, NOTE_G5, NOTE_AS5, NOTE_A5, NOTE_G5,
+    NOTE_F5, NOTE_G4, 0, NOTE_G4, NOTE_C5};
 
 static const int durations[] = {
-  500, 500, 250, 250, 500,
-  500, 250, 250, 500, 500,
-  250, 250, 500, 500, 250,
-  250, 250, 250, 250, 500,
-  250, 250, 500, 500, 500
-};
+    500, 500, 250, 250, 500,
+    500, 250, 250, 500, 500,
+    250, 250, 500, 500, 250,
+    250, 250, 250, 250, 500,
+    250, 250, 500, 500, 500};
 
-void GameOfThrones() {
-   // conecta pin al canal 1
- ledcAttachPin(BUZZER_PIN, BUZZER_CHAN);
+void GameOfThrones()
+{
+  // conecta pin al canal 1
+  ledcAttachPin(BUZZER_PIN, BUZZER_CHAN);
   int n = sizeof(melody) / sizeof(melody[0]);
-  for (int i = 0; i < n; i++) {
+  for (int i = 0; i < n; i++)
+  {
     int note = melody[i];
-    int dur  = durations[i];
-    if (note == 0) {
+    int dur = durations[i];
+    if (note == 0)
+    {
       // silencio
       ledcWriteTone(BUZZER_CHAN, 0);
       delay(dur);
-    } else {
+    }
+    else
+    {
       // emite la frecuencia
       ledcWriteTone(BUZZER_CHAN, note);
       delay(dur);
@@ -127,34 +157,38 @@ void GameOfThrones() {
 }
 
 // 1) Sonido al iniciar la prueba: “moneda” de Mario
-void playTestStartSound() {
-  static const int melody[] = { NOTE_C5, NOTE_E5, NOTE_G5 };
-  static const int durations[] = {  50,      50,      200 };
-  for (size_t i = 0; i < sizeof(melody)/sizeof(melody[0]); i++) {
+void playTestStartSound()
+{
+  static const int melody[] = {NOTE_C5, NOTE_E5, NOTE_G5};
+  static const int durations[] = {50, 50, 200};
+  for (size_t i = 0; i < sizeof(melody) / sizeof(melody[0]); i++)
+  {
     playTone(melody[i], durations[i]);
     delay(20);
   }
 }
 
 // 2) Sonido al terminar la prueba: “power-up”
-void playTestEndSound() {
-  static const int melody[] = { NOTE_C5, NOTE_C6 };
-  static const int durations[] = { 150,      300 };
-  for (size_t i = 0; i < sizeof(melody)/sizeof(melody[0]); i++) {
+void playTestEndSound()
+{
+  static const int melody[] = {NOTE_C5, NOTE_C6};
+  static const int durations[] = {150, 300};
+  for (size_t i = 0; i < sizeof(melody) / sizeof(melody[0]); i++)
+  {
     playTone(melody[i], durations[i]);
     delay(30);
   }
 }
 
 // 3) Sonido al mostrar resultados: “level clear” (primeros compases)
-void playResultsSound() {
+void playResultsSound()
+{
   static const int melody[] = {
-    NOTE_G5, NOTE_F5, NOTE_E5, NOTE_C5, NOTE_E5, NOTE_G5
-  };
+      NOTE_G5, NOTE_F5, NOTE_E5, NOTE_C5, NOTE_E5, NOTE_G5};
   static const int durations[] = {
-     100,     100,     100,     200,     100,     300
-  };
-  for (size_t i = 0; i < sizeof(melody)/sizeof(melody[0]); i++) {
+      100, 100, 100, 200, 100, 300};
+  for (size_t i = 0; i < sizeof(melody) / sizeof(melody[0]); i++)
+  {
     playTone(melody[i], durations[i]);
     delay(20);
   }
@@ -240,7 +274,7 @@ void testFugas()
     u8g2.drawStr(0, 25, "¡ADVERTENCIA: FUGAS !");
 
     u8g2.sendBuffer();
-    // delay(100);
+    delay(100);
   }
   else
   {
@@ -249,10 +283,10 @@ void testFugas()
     Serial.println(" INYECTOR BIEN! .");
     u8g2.drawStr(0, 25, "¡INYECTOR OK!");
     u8g2.sendBuffer();
-    // delay(100);
+    delay(100);
   }
 
-  // delay(2000);
+   delay(2000);
 
   resultadosTests["fugas"] = result;
 }
@@ -260,13 +294,14 @@ void testFugas()
 // 3. Prueba de Sonido de Activación
 void testSonido()
 {
-  float cvSum = 0.0;            // Suma total de los CV de cada ciclo
-  int abnormalCycles = 0;       // Contador de ciclos que superan el umbral
-  const float umbralAlto = 5.0; // Umbral de CV en porcentaje (20% en este ejemplo)
+  float cvSum = 0.0;                 // Suma total de los CV de cada ciclo
+  int abnormalCycles = 0;            // Ciclos con CV alto
+  int clicsBajos = 0;                // Ciclos con clics muy bajos
+  const float umbralCV = 2.0;        // Umbral de CV en porcentaje
+  const float umbralClicBajo = 50.0; // Umbral mínimo de media de clics (ajustable)
   TestResult result;
   Serial.println("Inicio de ciclos de medición...");
 
-  // Realiza "numCycles" ciclos de medición
   for (int cycle = 0; cycle < numCycles; cycle++)
   {
     int muestras[numSamples];
@@ -274,7 +309,6 @@ void testSonido()
     Serial.print("Ciclo ");
     Serial.println(cycle + 1);
 
-    // Captura de muestras para este ciclo
     for (int i = 0; i < numSamples; i++)
     {
       muestras[i] = analogRead(PIN_SONIDO);
@@ -283,26 +317,22 @@ void testSonido()
       Serial.print(i + 1);
       Serial.print(": ");
       Serial.println(muestras[i]);
-      delay(10); // Ajusta el retardo según la frecuencia deseada
+      delay(10);
     }
 
-    // Cálculo de la media de este ciclo
     float media = (float)suma / numSamples;
-
-    // Cálculo de la varianza y la desviación estándar
     float varianza = 0.0;
+
     for (int i = 0; i < numSamples; i++)
     {
       varianza += pow(muestras[i] - media, 2);
     }
+
     varianza /= numSamples;
     float desviacionEstandar = sqrt(varianza);
-
-    // Cálculo del coeficiente de variación (CV)
     float cycleCV = (media != 0) ? (desviacionEstandar / media) * 100.0 : 0.0;
     cvSum += cycleCV;
 
-    // Imprimir resultados del ciclo en el Monitor Serial
     Serial.print("  Media: ");
     Serial.println(media, 2);
     Serial.print("  Desviacion Std: ");
@@ -311,69 +341,67 @@ void testSonido()
     Serial.print(cycleCV, 2);
     Serial.println(" %");
 
-    if (cycleCV > umbralAlto)
+    if (cycleCV > umbralCV)
     {
-      Serial.println("  Estado: INYECTOR MAL");
+      Serial.println("  Estado: INYECTOR MAL (CV alto)");
       abnormalCycles++;
+    }
+    else if (media < umbralClicBajo)
+    {
+      Serial.println("  Estado: INYECTOR MAL (clics bajos)");
+      clicsBajos++;
     }
     else
     {
       Serial.println("  Estado: INYECTOR OK");
     }
+
     Serial.println("-----------------------------");
-    delay(1000); // Breve pausa entre ciclos
+    delay(1000);
   }
 
-  // Calcular resultados globales
   float averageCV = cvSum / numCycles;
   Serial.println("Resultados Globales:");
   Serial.print("  Promedio de CV: ");
   Serial.print(averageCV, 2);
   Serial.println(" %");
-  Serial.print("  Ciclos Anormales: ");
-  Serial.print(abnormalCycles);
-  Serial.print(" de ");
-  Serial.println(numCycles);
-
-  // Definir criterio final:
-  // Por ejemplo, si más de la mitad de los ciclos indican fallo, el inyector se considera malo.
+  Serial.print("  Ciclos con CV alto: ");
+  Serial.println(abnormalCycles);
+  Serial.print("  Ciclos con clics bajos: ");
+  Serial.println(clicsBajos);
 
   String finalResult;
-  if (abnormalCycles > numCycles / 2)
+  if (abnormalCycles > numCycles / 2 || clicsBajos > numCycles / 2)
   {
     finalResult = "INYECTOR: MAL";
-
     result.passed = false;
   }
   else
   {
     finalResult = "INYECTOR: OK";
-
     result.passed = true;
   }
 
   Serial.println(finalResult);
 
-  // Mostrar resultados en la pantalla OLED
   u8g2.clearBuffer();
   u8g2.setCursor(0, 12);
-  u8g2.print("CV Promedio: ");
+  u8g2.print("CV Prom: ");
   u8g2.print(averageCV, 2);
   u8g2.print(" %");
   u8g2.setCursor(0, 30);
-  u8g2.print("Ciclos mal: ");
+  u8g2.print("CV Mal: ");
   u8g2.print(abnormalCycles);
-  u8g2.print("/");
-  u8g2.print(numCycles);
+  u8g2.print(" CB: ");
+  u8g2.print(clicsBajos);
   u8g2.setCursor(0, 48);
   u8g2.print(finalResult);
   u8g2.sendBuffer();
 
-  // Espera antes de repetir la serie de ciclos
   delay(1000);
   resultadosTests["Sonido"] = result;
 }
-// 4. Prueba de Corriente de Activación
+
 void testCorriente()
 {
   TestResult result;
@@ -464,45 +492,75 @@ void testTiempoRespuesta()
 }
 
 // 6. Prueba de Caudal de Combustibles
-void testCaudal()
-{
+void testCaudal() {
   TestResult result;
+  
+  ultrasonic_sensor.printDistance();
 
-  // Medición inicial
-  float distanciaInicial = ultrasonic_sensor.get_distance_fashion(5, true);
-  controlBombaDurantePrueba(3, 10, testTimeValue, setupvalues, estate_inyector::ACTIVA_INYECTOR_CON_REVOLUCION);
+  // 1) Medición con ultrasonidos
+  float distIni_cm = ultrasonic_sensor.get_distance_fashion(10, true);
+  delay(1000);
+ 
+  // 2) Ejecutar prueba (usa testDurationSec internamente en ms si es necesario)
+  controlBombaDurantePrueba(
+    3, 30,
+    testTimeValolue,
+    setupvalues,
+    estate_inyector::ACTIVA_INYECTOR_CON_REVOLUCION
+  );
   inyector.stop();
-  float distanciaFinal = ultrasonic_sensor.get_distance_fashion(5, false);
+ 
+    delay(1000);
+  // 3) Medir distancia final
+  float distFin_cm = ultrasonic_sensor.get_distance_fashion(10, false);
 
-  // Cálculo de volumen medido
-  float deltaAltura = distanciaInicial - distanciaFinal;
-  float volumenMedido = deltaAltura * areaProbeta;
+  // 4) Volumen real en cc
+  float deltaH_cm     = distIni_cm - distFin_cm;
+  float volumenMedido = deltaH_cm * areaProbeta_cm2;
+  Serial.print(distIni_cm);
+  Serial.print(distFin_cm);
 
-  // Cálculo de combustible teórico inyectado
-  float pulseWidth_ms = pulseWidthValue * 10.0;
-  float RPM_real = rpmValue * 1000.0;
-  float tiempoSec = (testTimeValue * 10000.0) / 1000.0;
-  float combustibleCalculado = calcularCombustible(Q_inyector, pulseWidth_ms, RPM_real, n, tiempoSec);
+  Serial.print(deltaH_cm);
+  Serial.print(areaProbeta_cm2);
+  Serial.print(volumenMedido);
+  // 5) Leer parámetros globales
+  float freq_Hz       = frecuencia;        // Hz
+  float pulseWidth_us = anchoPulsoUs;     // µs
+  float testTime_s    = tiempoPruebaSec;  // s
+  // frecuenciaa = frecuencia ;     // RPM → Hz (4 tiempos)
+  // anchoPulsoUss =anchoPulsoUs;  // ms → µs
+  // tiempoPruebaSecc = tiempoPruebaSec; // ms → segundos
+  // 6) Cálculo teórico
+  float combustibleTeorico = calcularCombustible(
+    Q_inyector_cc_min,
+    freq_Hz,
+    pulseWidth_us,
+    testTime_s
+  );
+  ultrasonic_sensor.printDistance();
+  // 7) Factor de corrección
+  float calFactor = volumenMedido / combustibleTeorico;
+  float combustibleAjustado = combustibleTeorico * calFactor;
 
-  // Asignar datos al struct
+  // 8) Evaluación ±5%
   result.measuredValue = volumenMedido;
-  result.expectedValue = combustibleCalculado; // establecer valor esperado
-  result.passed = (volumenMedido >= combustibleCalculado * 0.95f && volumenMedido <= combustibleCalculado * 1.05f);
-
-  // Guardar en el mapa con la clave exacta usada en pruebaInfo
+  result.expectedValue = combustibleAjustado;
+  result.passed        = (
+    volumenMedido >= combustibleAjustado * 0.95 &&
+    volumenMedido <= combustibleAjustado * 1.05
+  );
   resultadosTests["caudal"] = result;
 
-  // Para depuración, imprime tamaño y claves
-  Serial.print("Mapa size: ");
-  Serial.println(resultadosTests.size());
-  Serial.print("Claves: ");
-  for (auto &kv : resultadosTests)
-  {
-    Serial.print(kv.first.c_str());
-    Serial.print(" ");
-  }
-  Serial.println();
+  // 9) Salida Serial para depurar
+  Serial.println("--- Test Caudal ---");
+  Serial.print("Vol medido cc:     "); Serial.println(volumenMedido,      4);
+  Serial.print("Vol teorico cc:    "); Serial.println(combustibleTeorico, 4);
+  Serial.print("Factor correcion:  "); Serial.println(calFactor,           4);
+  Serial.print("Vol ajustado cc:   "); Serial.println(combustibleAjustado, 4);
+  Serial.print("Resultado:         "); Serial.println(result.passed ? "PASA" : "FALLA");
+  Serial.println("---------------------");
 }
+
 
 // 7. prueba de Temperatura
 void testTemperatura()
@@ -555,7 +613,7 @@ void runTestResistencia()
   u8g2.drawStr(0, 10, "Prueba de resistencia");
   delay(10);
   u8g2.sendBuffer();
-  controlBombaDurantePrueba(3, 10, 1500, testResistencia, estate_inyector::ACTIVA_INYECTOR_SIN_REVOLUCION);
+  controlBombaDurantePrueba(3, 40, 1500, testResistencia, estate_inyector::ACTIVA_INYECTOR_SIN_REVOLUCION);
   // Convertir valores a string antes de pasarlos a drawStr()
   std::string measuredValueStr = std::to_string(resultadosTests["resistencia"].measuredValue);
   std::string passedStr = resultadosTests["resistencia"].passed ? "OK" : "FAILED";
@@ -577,9 +635,12 @@ void runTestResistencia()
   u8g2.drawStr(0, 45, estadoLabel);
   u8g2.drawStr(valorX, 45, passedStr.c_str());
   u8g2.sendBuffer();
-  delay (5000);
+  delay(5000);
   playTestEndSound();
-
+  Serial.println("desalojamos liquido");
+  controlBombaDurantePrueba(0, 0, 3000, []()
+                            { Callback(); }, estate_inyector::ACTIVA_INYECTOR_SIN_REVOLUCION);
+  playTestEndSound();
 }
 
 void runTestFugas()
@@ -589,7 +650,7 @@ void runTestFugas()
   Serial.println(ultrasonic_sensor.getDistance());
   ultrasonic_sensor.get_distance_fashion(20, true);
   Serial.println("activamos la bomba");
-  controlBombaDurantePrueba(1, 18, 4000, []()
+  controlBombaDurantePrueba(3, 40, 4000, []()
                             { Callback(); }, estate_inyector::INJECTOR_MIN);
   u8g2.clearBuffer();
   testFugas();
@@ -616,22 +677,24 @@ void runTestFugas()
   u8g2.sendBuffer();
   delay(5000);
   Serial.println("desalojamos liquido");
-  controlBombaDurantePrueba(0, 0, 20, []()
+  controlBombaDurantePrueba(0, 0, 4000, []()
                             { Callback(); }, estate_inyector::ACTIVA_INYECTOR_SIN_REVOLUCION);
-                            playTestEndSound();
-
+  playTestEndSound();
 }
 
 void runTestSonido()
 {
   playTestStartSound();
+  // controlBombaDurantePrueba(3, 30, testTimeValue, setupvalues, estate_inyector::ACTIVA_INYECTOR_CON_REVOLUCION);
+  // inyector.stop();
+  digitalWrite(BOMBA_PIN, LOW);
+  delay(1000);
+  digitalWrite(BOMBA_PIN, HIGH);
+  controlBombaDurantePrueba(0, 0, 7000, testSonido, estate_inyector::ACTIVA_INYECTOR_CON_REVOLUCION);
 
-  controlBombaDurantePrueba(3, 20, 7000, testSonido, estate_inyector::ACTIVA_INYECTOR_CON_REVOLUCION);
-  delay(50);
-  controlBombaDurantePrueba(0, 0, 20, []()
+  controlBombaDurantePrueba(0, 0, 3000, []()
                             { Callback(); }, estate_inyector::ACTIVA_INYECTOR_SIN_REVOLUCION);
-                            playTestEndSound();
-
+  playTestEndSound();
 }
 
 void runTestCorriente()
@@ -662,9 +725,12 @@ void runTestCorriente()
   u8g2.drawStr(0, 45, estadoLabel);
   u8g2.drawStr(valorX, 45, passedStr.c_str());
   u8g2.sendBuffer();
-  delay (1000);
+  delay(1000);
   playTestEndSound();
-
+  Serial.println("desalojamos liquido");
+  controlBombaDurantePrueba(0, 0, 3000, []()
+                            { Callback(); }, estate_inyector::ACTIVA_INYECTOR_SIN_REVOLUCION);
+  playTestEndSound();
 }
 
 void runTestTiempoRespuesta()
@@ -674,7 +740,6 @@ void runTestTiempoRespuesta()
   testTiempoRespuesta();
 
   playTestEndSound();
-
 }
 
 void runTestCaudal()
@@ -708,10 +773,9 @@ void runTestCaudal()
   u8g2.drawStr(valorX, 45, passedStr.c_str());
   u8g2.sendBuffer();
   delay(1000);
-  controlBombaDurantePrueba(0, 0, 20, []()
+  controlBombaDurantePrueba(0, 0, 3000, []()
                             { Callback(); }, estate_inyector::ACTIVA_INYECTOR_SIN_REVOLUCION);
-                            playTestEndSound();
-
+  playTestEndSound();
 }
 
 void runTestTemperatura()
@@ -719,7 +783,7 @@ void runTestTemperatura()
   playTestStartSound();
 
   inyector.rpmValue_tem = 6500;
-  controlBombaDurantePrueba(3, 10, 12000, testTemperatura, estate_inyector::ACTIVA_INYECTOR_CON_REVOLUCION);
+  controlBombaDurantePrueba(3, 40, 12000, testTemperatura, estate_inyector::ACTIVA_INYECTOR_CON_REVOLUCION);
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_6x12_tf);
   // Convertir valores a string antes de pasarlos a drawStr()
@@ -744,11 +808,10 @@ void runTestTemperatura()
   u8g2.drawStr(valorX, 45, passedStr.c_str());
   u8g2.sendBuffer();
   delay(1000);
-  controlBombaDurantePrueba(0, 0, 20, []()
+  controlBombaDurantePrueba(0, 0, 3000, []()
                             { Callback(); }, estate_inyector::ACTIVA_INYECTOR_SIN_REVOLUCION);
-                            playTestEndSound();
-
-                          }
+  playTestEndSound();
+}
 
 void activarBuzzer()
 {
@@ -794,11 +857,8 @@ void mostrarResultado(const char *nombre, const TestResult &result)
 void setupbit()
 {
   pinMode(BUZZER_PIN, OUTPUT);
-  digitalWrite(BUZZER_PIN, LOW);  // Asegura estado inicial bajo
-  
-  
+  digitalWrite(BUZZER_PIN, LOW); // Asegura estado inicial bajo
 }
-
 
 // Identificadores de pruebas
 enum EPrueba
@@ -828,11 +888,13 @@ static const char *pruebaSoluciones[] = {
 std::map<EPrueba, TestResult> resultados;
 
 // ————— Mostrar correcciones una a una —————
-void mostrarSoluciones() {
+void mostrarSoluciones()
+{
   // Prueba de Resistencia
   {
     auto it = resultadosTests.find("resistencia");
-    if (it != resultadosTests.end() && !it->second.passed) {
+    if (it != resultadosTests.end() && !it->second.passed)
+    {
       u8g2.clearBuffer();
       u8g2.setFont(u8g2_font_6x12_tf);
       u8g2.drawStr(0, 5, "Prueba de Resistencia");
@@ -842,15 +904,19 @@ void mostrarSoluciones() {
       u8g2.drawStr(0, 40, "cambie inyector");
       u8g2.drawStr(0, 56, "Presione boton");
       u8g2.sendBuffer();
-      while (digitalRead(botonPin) == HIGH) playClickSound(); delay(50);
+
+      while (digitalRead(botonPin) == HIGH)
+        delay(50);
       delay(debounceDelay);
     }
+    playClickSound();
   }
 
   // Prueba de Fugas
   {
     auto it = resultadosTests.find("fugas");
-    if (it != resultadosTests.end() && !it->second.passed) {
+    if (it != resultadosTests.end() && !it->second.passed)
+    {
       u8g2.clearBuffer();
       u8g2.setFont(u8g2_font_6x12_tf);
       u8g2.drawStr(0, 5, "Prueba de Fugas");
@@ -860,15 +926,18 @@ void mostrarSoluciones() {
       u8g2.drawStr(0, 40, "cambie inyector");
       u8g2.drawStr(0, 56, "Presione boton");
       u8g2.sendBuffer();
-      while (digitalRead(botonPin) == HIGH) playClickSound(); delay(50);
+      while (digitalRead(botonPin) == HIGH)
+        delay(50);
       delay(debounceDelay);
     }
+    playClickSound();
   }
 
   // Prueba de Sonido
   {
-    auto it = resultadosTests.find("sonido");
-    if (it != resultadosTests.end() && !it->second.passed) {
+    auto it = resultadosTests.find("Sonido");
+    if (it != resultadosTests.end() && !it->second.passed)
+    {
       u8g2.clearBuffer();
       u8g2.setFont(u8g2_font_6x12_tf);
       u8g2.drawStr(0, 5, "Prueba de Sonido");
@@ -878,15 +947,18 @@ void mostrarSoluciones() {
       u8g2.drawStr(0, 40, "cambie inyector");
       u8g2.drawStr(0, 56, "Presione boton");
       u8g2.sendBuffer();
-      while (digitalRead(botonPin) == HIGH) playClickSound(); delay(50);
+      while (digitalRead(botonPin) == HIGH)
+        delay(50);
       delay(debounceDelay);
     }
+    playClickSound();
   }
 
   // Prueba de Corriente de Activación
   {
     auto it = resultadosTests.find("corrienteActivacion");
-    if (it != resultadosTests.end() && !it->second.passed) {
+    if (it != resultadosTests.end() && !it->second.passed)
+    {
       u8g2.clearBuffer();
       u8g2.setFont(u8g2_font_6x12_tf);
       u8g2.drawStr(0, 5, "Prueba Corriente");
@@ -895,15 +967,18 @@ void mostrarSoluciones() {
       u8g2.drawStr(0, 30, "cambie inyector");
       u8g2.drawStr(0, 56, "Presione boton");
       u8g2.sendBuffer();
-      while (digitalRead(botonPin) == HIGH) playClickSound(); delay(50);
+      while (digitalRead(botonPin) == HIGH)
+        delay(50);
       delay(debounceDelay);
     }
+    playClickSound();
   }
 
   // Prueba de Tiempo de Respuesta
   {
     auto it = resultadosTests.find("tiempoRespuesta");
-    if (it != resultadosTests.end() && !it->second.passed) {
+    if (it != resultadosTests.end() && !it->second.passed)
+    {
       u8g2.clearBuffer();
       u8g2.setFont(u8g2_font_6x12_tf);
       u8g2.drawStr(0, 5, "Prueba Tiempo Resp.");
@@ -912,15 +987,18 @@ void mostrarSoluciones() {
       u8g2.drawStr(0, 30, "cambie inyector");
       u8g2.drawStr(0, 56, "Presione boton");
       u8g2.sendBuffer();
-      while (digitalRead(botonPin) == HIGH) playClickSound(); delay(50);
+      while (digitalRead(botonPin) == HIGH)
+        delay(50);
       delay(debounceDelay);
     }
+    playClickSound();
   }
 
   // Prueba de Caudal
   {
     auto it = resultadosTests.find("caudal");
-    if (it != resultadosTests.end() && !it->second.passed) {
+    if (it != resultadosTests.end() && !it->second.passed)
+    {
       u8g2.clearBuffer();
       u8g2.setFont(u8g2_font_6x12_tf);
       u8g2.drawStr(0, 5, "Prueba de Caudal");
@@ -930,15 +1008,18 @@ void mostrarSoluciones() {
       u8g2.drawStr(0, 40, "cambie inyector");
       u8g2.drawStr(0, 56, "Presione boton");
       u8g2.sendBuffer();
-      while (digitalRead(botonPin) == HIGH)playClickSound();  delay(50);
+      while (digitalRead(botonPin) == HIGH)
+        delay(50);
       delay(debounceDelay);
     }
+    playClickSound();
   }
 
   // Prueba de Temperatura
   {
     auto it = resultadosTests.find("temperatura");
-    if (it != resultadosTests.end() && !it->second.passed) {
+    if (it != resultadosTests.end() && !it->second.passed)
+    {
       u8g2.clearBuffer();
       u8g2.setFont(u8g2_font_6x12_tf);
       u8g2.drawStr(0, 5, "Prueba Temperatura");
@@ -948,9 +1029,11 @@ void mostrarSoluciones() {
       u8g2.drawStr(0, 40, "cambie inyector");
       u8g2.drawStr(0, 56, "Presione boton");
       u8g2.sendBuffer();
-      while (digitalRead(botonPin) == HIGH) playClickSound(); delay(50);
+      while (digitalRead(botonPin) == HIGH)
+        delay(50);
       delay(debounceDelay);
     }
+    playClickSound();
   }
 
   // Al finalizar todas las correcciones…
@@ -968,26 +1051,31 @@ void mostrarResultadosFinales()
   u8g2.drawStr(0, 0, "RESULTADOS");
 
   {
-    int y = 10;  // posición vertical inicial
+    int y = 10; // posición vertical inicial
     char output[64];
-    for (auto& p : pruebaInfo) {
+    for (auto &p : pruebaInfo)
+    {
       auto it = resultadosTests.find(p.key);
-      if (it != resultadosTests.end()) {
-        const TestResult& r = it->second;
-        const char* estado = r.passed ? "OK" : "FALLA";
+      if (it != resultadosTests.end())
+      {
+        const TestResult &r = it->second;
+        const char *estado = r.passed ? "OK" : "FALLA";
         // Mostrar solo estado de la prueba
         snprintf(output, sizeof(output), "%s: %s", p.label, estado);
-      } else {
+      }
+      else
+      {
         snprintf(output, sizeof(output), "%s: --", p.label);
       }
       u8g2.drawStr(0, y, output);
-      y += 8;  // desplazamiento para siguiente línea
+      y += 8; // desplazamiento para siguiente línea
     }
   }
 
   u8g2.sendBuffer();
   delay(300);
-  while (digitalRead(botonPin) == HIGH) delay(100);
+  while (digitalRead(botonPin) == HIGH)
+    delay(100);
   delay(debounceDelay);
   delay(200);
   mostrarSoluciones();

@@ -12,9 +12,13 @@
 #include <ToneESP32.h>
 #include "pruebas/pruebas.h"
 #include "Notes.h"
+// #include <SRF05.h>
 
 // Lee la temperatura en grados Celsius
+// extern const int trigPin;   // declaración de la constante
+// extern const int echoPin;   // declaración de la constante
 
+// extern SRF05 SRF;           // declaración “extern” de tu objeto
 
 // Pines del encoder
 #define ENCODER_PIN_A 41
@@ -101,7 +105,7 @@ const int botonPin = 40;
 #define PIN_INYECTOR_PWM 5  // Pin conectado al MOSFET (ej: GPIO9)
 #define PWM_CHANNEL 0       // Canal PWM (0-15)
 #define PWM_FREQ 100        // Frecuencia en Hz (ajusta según el inyector)
-#define PWM_RESOLUTION 8    // Resolución de 8 bits (0-255)
+#define PWM_RESOLUTION 8   // Resolución de 8 bits (0-255)
 #define pinraro 18
 // Variables de control
 extern bool inyectorActivo;

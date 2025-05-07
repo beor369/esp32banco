@@ -7,11 +7,15 @@
 long frecuencia;
 unsigned long anchoPulsoUs;
 unsigned long tiempoPruebaSec;
-
-long frecuenciaa;
+unsigned long DurationSec;
+ long frecuenciaa;
 unsigned long anchoPulsoUss;
 unsigned long tiempoPruebaSecc;
 
+// definición de las variables globales
+float frequency = 0.0f;               // Hz
+unsigned long pulseWidthUs = 0;       // µs
+unsigned long testDurationSec = 0;    // s
 InjectorController inyector(INYECTOR_PIN, 0, 12);
 
 InyectorParametros InjectorController::activarInyectorDesdeEncoder(long test_time)
@@ -29,6 +33,7 @@ InyectorParametros InjectorController::activarInyectorDesdeEncoder(long test_tim
   anchoPulsoUs = pulseWidthValue * 1000;  // ms → µs
 
   tiempoPruebaSec = test_time / 1000; // ms → segundos
+  DurationSec= tiempoPruebaSec;
 
   inyector.activate(frecuencia, anchoPulsoUs, tiempoPruebaSec);
 
@@ -45,10 +50,7 @@ void InjectorController::activar_injector_sin_revolucion(float time)
 
 InyectorParametros InjectorController::devolver()
 {
-  // Convertir a parámetros técnicos (asegurar unidades correctas)
-  // float frecuencia = rpmValue / 120.0f;          // RPM → Hz (4 tiempos)
-  // unsigned long anchoPulsoUs = pulseWidthValue * 1000; // ms → µs
-  // unsigned long tiempoPruebaSec = testTimeValue / 1000; // ms → segundos
+
   frecuenciaa = frecuencia ;     // RPM → Hz (4 tiempos)
   anchoPulsoUss =anchoPulsoUs;  // ms → µs
   tiempoPruebaSecc = tiempoPruebaSec; // ms → segundos
@@ -185,30 +187,6 @@ void InjectorController::begin_bomba()
   digitalWrite(BOMBA_PIN, HIGH);
 }
 
-// void InjectorController::activate(float freq, unsigned long pulseWidthUs, unsigned long testDurationSec) {
-//   // Calcular la resolución mínima necesaria para que el divisor no supere el límite
-//   // Usamos clock = 40e6 (en Hz) y max_divider = 1023
-//   uint8_t min_resolution = ceil(log2(40000000.0 / (1023.0 * freq)));
-
-//   // Limitar la resolución a un rango aceptable (por ejemplo, entre 8 y 15 bits)
-//   if (min_resolution < 8) {
-//     min_resolution = 8;
-//   } else if (min_resolution > 15) {
-//     min_resolution = 15;
-//   }
-
-//   // Configurar PWM con la resolución calculada
-//   ledcSetup(channel, freq, min_resolution);
-
-//   // Calcular el duty cycle según la resolución actual
-//   uint64_t periodUs = 1000000 / freq;
-//   uint32_t duty = (pulseWidthUs * (1ULL << min_resolution)) / periodUs;
-//   duty = constrain(duty, 1, (1U << min_resolution) - 1);
-
-//   // Resto del código...
-//   ledcWrite(channel, duty);
-//   Serial.printf("Resolución: %u bits | Duty: %u\n", min_resolution, duty);
-// }
 
 void InjectorController::update()
 {
@@ -224,7 +202,7 @@ void InjectorController::stop()
   this->is_activate_min= false;
   ledcWrite(channel, 0);
   isActive = false;
-  Serial.println("Inyector DESACTIVADO");
+  // Serial.println("Inyector DESACTIVADO");
 }
 
 bool InjectorController::isInjectorActive() const

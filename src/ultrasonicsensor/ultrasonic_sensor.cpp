@@ -33,37 +33,32 @@ void UltrasonicSensor::printDistance() {
     Serial.println(" cm");
 }
 
+// Función mejorada de UltrasonicSensor para usar mediana
+// Función mejorada de UltrasonicSensor para usar mediana
 
-float UltrasonicSensor::get_distance_fashion(int ciclos, bool is_save_fashion) {
+// Función mejorada de UltrasonicSensor para usar mediana y descartar outliers extremos
+float UltrasonicSensor::get_distance_fashion(int ciclos, bool saveMedian) {
+    const float MAX_DISTANCE_CM = 500.0f;
+    const float MIN_DISTANCE_CM =  2.0f;
     std::vector<float> distancias;
-    
-    for (int ci = 0; ci < ciclos; ci++) {
-        float distance = getDistance();
-        distancias.push_back(distance);
-        delay(1000); // Espera de 1 segundo entre mediciones
+    distancias.reserve(ciclos);
+  
+    for (int i = 0; i < ciclos; i++) {
+      float d = getDistance();
+      // Filtrar lecturas inválidas
+      if (d >= MIN_DISTANCE_CM && d <= MAX_DISTANCE_CM) {
+        distancias.push_back(d);
+      }
+      delay(200);
     }
-    
-    // Mapa para contar la frecuencia de cada distancia
-    std::map<float, int> frecuencia;
-    for (float d : distancias) {
-        frecuencia[d]++;
+    if (distancias.empty()) {
+      return saveMedian ? this->distaceFashion : -1.0f;
     }
-
-    // Buscar el valor más repetido
-    float moda = 0;
-    int maxFrecuencia = 0;
-    for (const auto& par : frecuencia) {
-        if (par.second > maxFrecuencia) {
-            maxFrecuencia = par.second;
-            moda = par.first;
-        }
-    }
-
-
-    if (is_save_fashion)
-    {
-        this->distaceFashion= moda;
-    }
-
-    return moda; // Retorna el valor más repetido
-}
+    // Calcular mediana
+    size_t mid = distancias.size() / 2;
+    std::nth_element(distancias.begin(), distancias.begin() + mid, distancias.end());
+    float median = distancias[mid];
+    if (saveMedian) this->distaceFashion = median;
+    return median;
+  }
+  
